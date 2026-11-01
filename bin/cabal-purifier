@@ -453,14 +453,12 @@ def make_lock(root, configuration):
                     repository[f"{pid}.tar.gz"] = {"file": f"{pid}.tar.gz", "pack": pack}
                 elif kind == "remote-tar":
                     uri = src["uri"]
+                    # A package URL is a dependency the project downloads,
+                    # so it is locked but is not one of the outputs.
                     if uri not in remote:
                         download = lock_remote_tarball(uri)
                         downloads[download["path"]] = download
                         remote[uri] = {"uri": uri, "from": download["path"]}
-                    if local:
-                        outputs.setdefault(
-                            name, {"version": version, "dir": None, **components_of(units)}
-                        )
                 else:
                     raise Failure(f"{pid} has a source of type {kind}, which the lock does not know")
             systems[system] = {"compiler": plan_json["compiler-id"], "units": units_out}
@@ -489,9 +487,6 @@ def make_lock(root, configuration):
                 downloads[description["path"]] = description
                 repository[f"{pid}.cabal"] = {"file": f"{pid}.cabal", "from": description["path"]}
 
-        for name, output in outputs.items():
-            if output["dir"] is None:
-                output["dir"] = "."
         local_dirs = sorted({o["dir"] for o in outputs.values()})
         return {
             "version": LOCK_VERSION,

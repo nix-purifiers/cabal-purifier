@@ -6,9 +6,10 @@ Usage: check_plan.py PLAN_JSON LOCK_UNITS_JSON
 PLAN_JSON is the plan.json that Cabal wrote for the build, and
 LOCK_UNITS_JSON is the lock's list of units for the build's system. Each
 package of the plan (name, version and flags) must be one the lock holds,
-and the other way round. A package the build compiles from a repository
-must be one the lock locked from one, and a package the compiler provides
-must be one the lock left to the compiler.
+and the other way round. A package the compiler provides must be one the
+lock left to the compiler. Whether Cabal treats a package as local is not
+compared: a package URL is a global package in the lock run, and the
+unpacked directory the build lists in its place is a local one.
 """
 
 import json
@@ -20,26 +21,21 @@ def plan_units(plan):
     for unit in plan["install-plan"]:
         name, version = unit["pkg-name"], unit["pkg-version"]
         installed = unit["type"] == "pre-existing"
-        local = unit.get("style") == "local"
         flags = tuple(sorted((unit.get("flags") or {}).items()))
-        units[(name, version)] = (installed, local, flags)
+        units[(name, version)] = (installed, flags)
     return units
 
 
 def lock_units(units):
     return {
-        (u["name"], u["version"]): (
-            u["installed"],
-            u["local"],
-            tuple(sorted(u["flags"].items())),
-        )
+        (u["name"], u["version"]): (u["installed"], tuple(sorted(u["flags"].items())))
         for u in units
     }
 
 
 def describe(key, value):
-    installed, local, flags = value
-    kind = "provided by the compiler" if installed else "local" if local else "built"
+    installed, flags = value
+    kind = "provided by the compiler" if installed else "built"
     flag_text = " ".join(("+" if on else "-") + f for f, on in flags)
     return f"{key[0]}-{key[1]} ({kind}{', ' + flag_text if flag_text else ''})"
 

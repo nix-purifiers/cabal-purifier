@@ -1,0 +1,9 @@
+cabal-version: 3.0
+name: app
+version: 0.1.0
+build-type: Simple
+
+executable greet
+  main-is: Main.hs
+  build-depends: base, text, greeting, shared, tagged, data-default-class
+  default-language: Haskell2010

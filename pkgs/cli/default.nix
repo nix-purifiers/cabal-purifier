@@ -12,6 +12,7 @@
   python3,
   cabal-install,
   ghc,
+  curl,
   gitMinimal,
   nix-prefetch-git,
   path,
@@ -27,8 +28,8 @@ stdenvNoCC.mkDerivation {
   installPhase = ''
     runHook preInstall
     install -Dm644 cabal-purifier "$out/libexec/cabal-purifier.py"
-    # git serves cabal's source repositories, and nix-prefetch-git hashes
-    # them for the lock.
+    # cabal downloads over HTTPS through curl. git serves cabal's source
+    # repositories, and nix-prefetch-git hashes them for the lock.
     makeWrapper ${python3}/bin/python3 "$out/bin/cabal-purifier" \
       --add-flags "$out/libexec/cabal-purifier.py" \
       --set CABAL_PURIFIER_LIB ${../../nix/lib} \
@@ -37,6 +38,7 @@ stdenvNoCC.mkDerivation {
         lib.makeBinPath [
           cabal-install
           ghc
+          curl
           gitMinimal
           nix-prefetch-git
         ]
