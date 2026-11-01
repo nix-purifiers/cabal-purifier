@@ -1,0 +1,760 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
+"""cabal-purifier: locks what a Cabal project downloads, so that Nix can
+build it offline.
+
+  cabal-purifier lock [--no-tests] [--no-benchmarks]
+      Writes cabal-purifier.lock.json at the project root, when the
+      project's Cabal files changed since the last lock.
+  cabal-purifier relock [--no-tests] [--no-benchmarks]
+      Writes the lockfile regardless.
+  cabal-purifier cabal ARGS...
+      Runs cabal offline on the locked sources, which Nix fetches.
+  cabal-purifier publish PACKAGE [--documentation] [UPLOAD-ARGS...]
+      Builds the package's source tarball (or documentation) with Nix and
+      uploads that file with `cabal upload`.
+
+The command reads these environment variables, which its Nix package sets:
+CABAL_PURIFIER_LIB (the directory of its Nix library) and
+CABAL_PURIFIER_NIXPKGS (the nixpkgs it builds with).
+"""
+
+import base64
+import hashlib
+import importlib.util
+import json
+import os
+import platform
+import re
+import shutil
+import subprocess
+import sys
+import tarfile
+import tempfile
+from pathlib import Path
+
+LOCK_NAME = "cabal-purifier.lock.json"
+LOCK_VERSION = 1
+PROJECT_FILES = ("cabal.project", "cabal.project.freeze", "cabal.project.local")
+
+# Each Nix system the lock plans for, with the target strings that GHC's
+# `--info` reports for it.
+SYSTEMS = {
+    "x86_64-linux": {"triple": "x86_64-unknown-linux", "arch": "ArchX86_64", "name": "x86_64"},
+    "aarch64-linux": {"triple": "aarch64-unknown-linux", "arch": "ArchAArch64", "name": "aarch64"},
+}
+
+LIB = Path(os.environ.get("CABAL_PURIFIER_LIB", Path(__file__).resolve().parent.parent / "nix/lib"))
+NIXPKGS = os.environ.get("CABAL_PURIFIER_NIXPKGS", "<nixpkgs>")
+
+
+class Failure(Exception):
+    """An error the command reports and exits on."""
+
+
+def say(message):
+    print(f"cabal-purifier: {message}", file=sys.stderr)
+
+
+def run(cmd, cwd=None, env=None, capture=False):
+    result = subprocess.run(
+        [str(c) for c in cmd],
+        cwd=cwd,
+        env=env,
+        text=True,
+        stdout=subprocess.PIPE if capture else None,
+    )
+    if result.returncode != 0:
+        raise Failure(f"`{' '.join(str(c) for c in cmd)}` failed with exit code {result.returncode}")
+    return result.stdout if capture else None
+
+
+def offline_project():
+    spec = importlib.util.spec_from_file_location("offline_project", LIB / "offline_project.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def sri_from_hex(hex_digest):
+    return "sha256-" + base64.b64encode(bytes.fromhex(hex_digest)).decode()
+
+
+def sri_of_file(path):
+    return sri_from_hex(hashlib.sha256(Path(path).read_bytes()).hexdigest())
+
+
+def host_system():
+    machine = platform.machine()
+    for system, target in SYSTEMS.items():
+        if target["name"] == machine and sys.platform.startswith("linux"):
+            return system
+    raise Failure(f"this machine ({machine}, {sys.platform}) is not one of {', '.join(SYSTEMS)}")
+
+
+def project_root():
+    root = Path.cwd()
+    if (root / "cabal.project").exists() or any(root.glob("*.cabal")):
+        return root
+    raise Failure("run cabal-purifier in a Cabal project: a directory with cabal.project or a .cabal file")
+
+
+def relative_to_root(root, path):
+    """A path relative to the project root, with `..` for paths outside it."""
+    return os.path.relpath(Path(path).resolve(), root.resolve())
+
+
+def https(url):
+    """The HTTPS URL of a repository. The sandbox has no SSH keys, so an SSH
+    URL is locked at the HTTPS URL of the same host and path."""
+    scp = re.match(r"^(?:[\w.-]+@)?([\w.-]+):(?!//)(.+)$", url)
+    if scp:
+        return f"https://{scp.group(1)}/{scp.group(2)}"
+    ssh = re.match(r"^ssh://(?:[\w.-]+@)?([\w.-]+)(?::\d+)?/(.+)$", url)
+    if ssh:
+        return f"https://{ssh.group(1)}/{ssh.group(2)}"
+    return url
+
+
+# --------------------------------------------------------------------------
+# The compiler and the planning wrapper
+
+
+def find_compiler(root):
+    """The GHC the project builds with: `with-compiler` of its project
+    files, else `ghc` on PATH."""
+    name = "ghc"
+    for file in PROJECT_FILES:
+        path = root / file
+        if path.exists():
+            for line in path.read_text().splitlines():
+                match = re.match(r"^with-compiler\s*:\s*(\S+)", line)
+                if match:
+                    name = match.group(1)
+    found = shutil.which(name)
+    if not found:
+        raise Failure(f"no compiler {name} on PATH")
+    return Path(found)
+
+
+def ghc_pkg_for(ghc):
+    version = run([ghc, "--numeric-version"], capture=True).strip()
+    for candidate in (f"ghc-pkg-{version}", "ghc-pkg"):
+        beside = ghc.parent / candidate
+        if beside.exists():
+            return beside
+    found = shutil.which(f"ghc-pkg-{version}") or shutil.which("ghc-pkg")
+    if not found:
+        raise Failure(f"no ghc-pkg for {ghc}")
+    return Path(found)
+
+
+def planning_compiler(tmp, ghc, system):
+    """A GHC that reports `system` as its target. Cabal takes the platform
+    it plans for from `ghc --info`, so this GHC lets one machine plan for
+    every system. It never compiles: the lock run only plans."""
+    host = SYSTEMS[host_system()]
+    target = SYSTEMS[system]
+    info = run([ghc, "--info"], capture=True)
+    info = info.replace(host["triple"], target["triple"]).replace(host["arch"], target["arch"])
+    info = info.replace(f'"{host["name"]}"', f'"{target["name"]}"')
+    directory = Path(tmp) / f"ghc-{system}"
+    directory.mkdir()
+    (directory / "info").write_text(info)
+    wrapper = directory / "ghc"
+    wrapper.write_text(
+        "#!/bin/sh\n"
+        'for arg in "$@"; do\n'
+        '  if [ "$arg" = --info ]; then\n'
+        f'    cat "{directory / "info"}"\n'
+        "    exit\n"
+        "  fi\n"
+        "done\n"
+        f'exec "{ghc}" "$@"\n'
+    )
+    wrapper.chmod(0o755)
+    (directory / "ghc-pkg").symlink_to(ghc_pkg_for(ghc))
+    return wrapper
+
+
+# --------------------------------------------------------------------------
+# The lock run
+
+
+def configuration_flags(configuration):
+    return [
+        "--enable-tests" if configuration["tests"] else "--disable-tests",
+        "--enable-benchmarks" if configuration["benchmarks"] else "--disable-benchmarks",
+    ]
+
+
+def plan(root, env, compiler, builddir, configuration, project_args=()):
+    run(
+        [
+            "cabal",
+            "build",
+            "all",
+            "--dry-run",
+            *project_args,
+            f"--with-compiler={compiler}",
+            f"--builddir={builddir}",
+            *configuration_flags(configuration),
+        ],
+        cwd=root,
+        env=env,
+    )
+    with open(Path(builddir) / "cache" / "plan.json") as f:
+        return json.load(f)
+
+
+def packages_of(plan_json):
+    """The packages of a plan, one entry per package with its units."""
+    packages = {}
+    for unit in plan_json["install-plan"]:
+        key = (unit["pkg-name"], unit["pkg-version"])
+        packages.setdefault(key, []).append(unit)
+    return packages
+
+
+def index_revisions(cabal_dir, wanted):
+    """The revision of each wanted package description in the downloaded
+    repository indexes: {(name, version): (revision, sha256 hex)}, for the
+    latest entry of each, which is the one Cabal resolved with."""
+    members = {f"{n}/{v}/{n}.cabal": (n, v) for n, v in wanted}
+    found = {}
+    for index in sorted(Path(cabal_dir, "packages").glob("*/01-index.tar")):
+        with tarfile.open(index) as tar:
+            for info in tar:
+                key = members.get(info.name)
+                if key is None:
+                    continue
+                text = tar.extractfile(info).read()
+                match = re.search(rb"^x-revision\s*:\s*(\d+)", text, re.MULTILINE | re.IGNORECASE)
+                found[key] = (int(match.group(1)) if match else 0, hashlib.sha256(text).hexdigest())
+    return found
+
+
+def prefetch_git(url, rev):
+    out = run(
+        ["nix-prefetch-git", "--url", url, "--rev", rev, "--fetch-submodules", "--quiet"],
+        capture=True,
+    )
+    data = json.loads(out)
+    return data["rev"], data["hash"]
+
+
+def nix_fetcher_hash(expression):
+    """The hash of a fixed-output fetch, from Nix itself: the fetch is built
+    with an empty hash, and Nix reports the hash it got."""
+    result = subprocess.run(
+        ["nix-build", "--no-out-link", "-E", expression],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    match = re.search(r"got:\s*(sha256-[A-Za-z0-9+/=]+)", result.stderr)
+    if not match:
+        sys.stderr.write(result.stderr)
+        raise Failure("could not hash a source repository through Nix")
+    return match.group(1)
+
+
+def lock_source_repository(repo, name, version):
+    """The download and the packing of a `source-repository-package`."""
+    kind = repo["type"]
+    location = repo["location"]
+    tag = repo.get("tag") or repo.get("branch")
+    subdir = repo.get("subdir") or "."
+    if kind == "git":
+        url = https(location)
+        rev, hash_ = prefetch_git(url, tag or "HEAD")
+        download = {
+            "path": f"source/git-{rev[:16]}",
+            "git": {"url": url, "rev": rev, "submodules": True, "leaveDotGit": False},
+            "hash": hash_,
+        }
+    elif kind in ("mercurial", "hg"):
+        if not tag:
+            raise Failure(f"the Mercurial source of {name} names no tag")
+        expr = (
+            f"(import {NIXPKGS} {{}}).fetchhg {{ url = {json.dumps(location)}; "
+            f"rev = {json.dumps(tag)}; hash = \"\"; }}"
+        )
+        download = {
+            "path": f"source/hg-{hashlib.sha256((location + tag).encode()).hexdigest()[:16]}",
+            "hg": {"url": location, "rev": tag},
+            "hash": nix_fetcher_hash(expr),
+        }
+    elif kind in ("svn", "subversion"):
+        if not tag:
+            raise Failure(f"the Subversion source of {name} names no tag (revision)")
+        expr = (
+            f"(import {NIXPKGS} {{}}).fetchsvn {{ url = {json.dumps(location)}; "
+            f"rev = {json.dumps(tag)}; hash = \"\"; }}"
+        )
+        download = {
+            "path": f"source/svn-{hashlib.sha256((location + tag).encode()).hexdigest()[:16]}",
+            "svn": {"url": location, "rev": tag},
+            "hash": nix_fetcher_hash(expr),
+        }
+    else:
+        raise Failure(
+            f"{name} comes from a {kind} source repository. The lock supports git, Mercurial "
+            "and Subversion source repositories."
+        )
+    pack = {"from": download["path"], "subdir": subdir, "root": f"{name}-{version}"}
+    return download, pack
+
+
+def lock_remote_tarball(uri):
+    import urllib.request
+
+    with urllib.request.urlopen(uri) as response:
+        data = response.read()
+    digest = hashlib.sha256(data).hexdigest()
+    base = re.sub(r"[^A-Za-z0-9+._-]", "_", uri.rstrip("/").rsplit("/", 1)[-1]) or "package"
+    return {
+        "path": f"remote/{digest[:16]}-{base}",
+        "url": uri,
+        "mirrors": [],
+        "hash": sri_from_hex(digest),
+    }
+
+
+def components_of(units):
+    """The components of a local package, from its units in the plan."""
+    names = []
+    for unit in units:
+        if "components" in unit:
+            names.extend(unit["components"].keys())
+        else:
+            names.append(unit.get("component-name", "lib"))
+    out = {
+        "library": False,
+        "sublibraries": [],
+        "executables": [],
+        "testSuites": [],
+        "benchmarks": [],
+        "foreignLibraries": [],
+    }
+    kinds = {
+        "lib": "sublibraries",
+        "exe": "executables",
+        "test": "testSuites",
+        "bench": "benchmarks",
+        "flib": "foreignLibraries",
+    }
+    for name in names:
+        if name == "lib":
+            out["library"] = True
+        elif ":" in name:
+            kind, component = name.split(":", 1)
+            if kind in kinds:
+                out[kinds[kind]].append(component)
+        # `setup` is the package's Setup script, not an output.
+    for key in kinds.values():
+        out[key] = sorted(set(out[key]))
+    return out
+
+
+def definition_files(root, local_dirs):
+    files = [f for f in PROJECT_FILES if (root / f).exists()]
+    for directory in local_dirs:
+        for cabal_file in sorted((root / directory).glob("*.cabal")):
+            files.append(relative_to_root(root, cabal_file))
+    return {f: sri_of_file(root / f) for f in sorted(set(files))}
+
+
+def make_lock(root, configuration):
+    with tempfile.TemporaryDirectory(prefix="cabal-purifier-") as tmp:
+        tmp = Path(tmp)
+        env = dict(os.environ, CABAL_DIR=str(tmp / "cabal"))
+        say("updating the package indexes in an empty Cabal directory")
+        run(["cabal", "update"], cwd=root, env=env)
+        ghc = find_compiler(root)
+        cabal_version = run(["cabal", "--numeric-version"], capture=True).strip()
+
+        plans = {}
+        for system in SYSTEMS:
+            say(f"planning for {system}")
+            plans[system] = plan(
+                root,
+                env,
+                planning_compiler(tmp, ghc, system),
+                tmp / f"dist-{system}",
+                configuration,
+            )
+
+        downloads = {}
+        repository = {}
+        remote = {}
+        externals = set()
+        outputs = {}
+        systems = {}
+        hackage = {}
+
+        for system, plan_json in plans.items():
+            units_out = []
+            for (name, version), units in sorted(packages_of(plan_json).items()):
+                unit = units[0]
+                installed = unit["type"] == "pre-existing"
+                local = unit.get("style") == "local"
+                units_out.append(
+                    {
+                        "name": name,
+                        "version": version,
+                        "flags": unit.get("flags") or {},
+                        "installed": installed,
+                        "local": local,
+                    }
+                )
+                if installed:
+                    continue
+                src = unit.get("pkg-src") or {}
+                pid = f"{name}-{version}"
+                kind = src.get("type")
+                if kind == "local":
+                    directory = relative_to_root(root, src["path"])
+                    if directory.startswith(".."):
+                        externals.add(directory)
+                    if local and not directory.startswith(".."):
+                        outputs[name] = {
+                            "version": version,
+                            "dir": directory,
+                            **components_of(units),
+                        }
+                elif kind == "local-tar":
+                    path = relative_to_root(root, src["path"])
+                    if path.startswith(".."):
+                        raise Failure(
+                            f"{pid} is a tarball outside the project ({path}); move it into the "
+                            "project, where the Nix build can read it"
+                        )
+                elif kind == "repo-tar":
+                    repo = src["repo"]
+                    if repo["type"] in ("secure-repo", "remote-repo"):
+                        uri = repo["uri"].rstrip("/")
+                        if uri == "http://hackage.haskell.org":
+                            uri = "https://hackage.haskell.org"
+                        hackage[(name, version)] = (uri, unit)
+                    elif repo["type"] in ("local-repo-no-index", "local-repo"):
+                        path = relative_to_root(root, Path(repo["path"]) / f"{pid}.tar.gz")
+                        if path.startswith(".."):
+                            raise Failure(
+                                f"{pid} comes from the local repository {repo['path']}, outside the "
+                                "project; move the repository into the project"
+                            )
+                        repository[f"{pid}.tar.gz"] = {"file": f"{pid}.tar.gz", "project": path}
+                    else:
+                        raise Failure(f"{pid} comes from a repository of type {repo['type']}")
+                elif kind == "source-repo":
+                    download, pack = lock_source_repository(src["source-repo"], name, version)
+                    downloads[download["path"]] = download
+                    repository[f"{pid}.tar.gz"] = {"file": f"{pid}.tar.gz", "pack": pack}
+                elif kind == "remote-tar":
+                    uri = src["uri"]
+                    if uri not in remote:
+                        download = lock_remote_tarball(uri)
+                        downloads[download["path"]] = download
+                        remote[uri] = {"uri": uri, "from": download["path"]}
+                    if local:
+                        outputs.setdefault(
+                            name, {"version": version, "dir": None, **components_of(units)}
+                        )
+                else:
+                    raise Failure(f"{pid} has a source of type {kind}, which the lock does not know")
+            systems[system] = {"compiler": plan_json["compiler-id"], "units": units_out}
+
+        revisions = index_revisions(tmp / "cabal", hackage.keys())
+        for (name, version), (uri, unit) in sorted(hackage.items()):
+            pid = f"{name}-{version}"
+            tarball = {
+                "path": f"repository/{pid}.tar.gz",
+                "url": f"{uri}/package/{pid}.tar.gz",
+                "mirrors": [f"{uri}/package/{pid}/{pid}.tar.gz"],
+                "hash": sri_from_hex(unit["pkg-src-sha256"]),
+            }
+            downloads[tarball["path"]] = tarball
+            repository[f"{pid}.tar.gz"] = {"file": f"{pid}.tar.gz", "from": tarball["path"]}
+            revision, digest = revisions.get((name, version), (0, None))
+            if digest is not None and digest != unit["pkg-cabal-sha256"]:
+                raise Failure(f"the index entry of {pid} does not match the plan; run the lock again")
+            if revision > 0:
+                description = {
+                    "path": f"repository/{pid}.cabal",
+                    "url": f"{uri}/package/{pid}/revision/{revision}.cabal",
+                    "mirrors": [],
+                    "hash": sri_from_hex(unit["pkg-cabal-sha256"]),
+                }
+                downloads[description["path"]] = description
+                repository[f"{pid}.cabal"] = {"file": f"{pid}.cabal", "from": description["path"]}
+
+        for name, output in outputs.items():
+            if output["dir"] is None:
+                output["dir"] = "."
+        local_dirs = sorted({o["dir"] for o in outputs.values()})
+        return {
+            "version": LOCK_VERSION,
+            "cabalInstall": cabal_version,
+            "configuration": configuration,
+            "definition": definition_files(root, local_dirs),
+            "downloads": [downloads[p] for p in sorted(downloads)],
+            "repository": [repository[f] for f in sorted(repository)],
+            "remotePackages": [remote[u] for u in sorted(remote)],
+            "externalPaths": sorted(externals),
+            "systems": systems,
+            "outputs": {"packages": {n: outputs[n] for n in sorted(outputs)}},
+        }
+
+
+# --------------------------------------------------------------------------
+# The locked sources, for the check after a lock and for `cabal`
+
+
+def realize(root, lock_path, out_link):
+    out_link.parent.mkdir(parents=True, exist_ok=True)
+    out = run(
+        [
+            "nix-build",
+            LIB / "realize.nix",
+            "--argstr",
+            "lockFile",
+            lock_path.resolve(),
+            "--argstr",
+            "src",
+            root.resolve(),
+            "--argstr",
+            "nixpkgs",
+            NIXPKGS,
+            "--out-link",
+            out_link,
+        ],
+        capture=True,
+    )
+    return Path(out.strip().splitlines()[-1])
+
+
+def constraints_of(units):
+    lines = []
+    for unit in units:
+        if unit["installed"]:
+            lines.append(f"any.{unit['name']} installed")
+            continue
+        lines.append(f"any.{unit['name']} =={unit['version']}")
+        if unit["flags"]:
+            flags = " ".join(("+" if on else "-") + f for f, on in sorted(unit["flags"].items()))
+            lines.append(f"any.{unit['name']} {flags}")
+    return lines
+
+
+def offline_setup(root, lock, sources, work):
+    """A Cabal directory whose only repository is the locked one, and the
+    offline copy of the project's configuration. Returns the environment
+    and the project arguments for cabal."""
+    work.mkdir(parents=True, exist_ok=True)
+    repo = work / "repository"
+    if repo.exists():
+        shutil.rmtree(repo)
+    repo.mkdir()
+    # Cabal writes noindex.cache into the repository, so the repository is
+    # a writable directory of links into the store.
+    for entry in (sources / "repo").iterdir():
+        (repo / entry.name).symlink_to(entry)
+    cabal_dir = work / "cabal"
+    cabal_dir.mkdir(exist_ok=True)
+    (cabal_dir / "config").write_text(
+        "repository purified\n"
+        f"  url: file+noindex://{repo.resolve()}\n"
+        "active-repositories: purified\n"
+    )
+    remote = json.loads((sources / "remote.json").read_text())
+    system = host_system()
+    if system not in lock["systems"]:
+        raise Failure(f"the lockfile has no plan for {system}; run `cabal-purifier relock`")
+    project = offline_project().write(
+        root, work / "project", remote, constraints_of(lock["systems"][system]["units"])
+    )
+    env = dict(os.environ, CABAL_DIR=str(cabal_dir))
+    return env, [f"--project-dir={root}", f"--project-file={project}"]
+
+
+def check_lock(root, lock_path, lock):
+    """Resolves the project offline from the locked sources alone, which
+    shows that the lock holds everything the plan needs."""
+    say("checking the lock: resolving offline from the locked sources")
+    with tempfile.TemporaryDirectory(prefix="cabal-purifier-check-") as tmp:
+        tmp = Path(tmp)
+        sources = realize(root, lock_path, tmp / "sources")
+        env, project_args = offline_setup(root, lock, sources, tmp / "work")
+        system = host_system()
+        resolved = plan(
+            root,
+            env,
+            find_compiler(root),
+            tmp / "dist",
+            lock["configuration"],
+            project_args,
+        )
+        locked = {(u["name"], u["version"]) for u in lock["systems"][system]["units"]}
+        got = set(packages_of(resolved))
+        if got != locked:
+            missing = sorted(f"{n}-{v}" for n, v in locked - got)
+            extra = sorted(f"{n}-{v}" for n, v in got - locked)
+            raise Failure(
+                "the offline resolution differs from the lock"
+                + (f"; missing: {', '.join(missing)}" if missing else "")
+                + (f"; extra: {', '.join(extra)}" if extra else "")
+            )
+
+
+# --------------------------------------------------------------------------
+# Verbs
+
+
+def read_lock(root):
+    path = root / LOCK_NAME
+    if not path.exists():
+        raise Failure(f"there is no {LOCK_NAME}; run `cabal-purifier lock`")
+    with open(path) as f:
+        lock = json.load(f)
+    if lock.get("version") != LOCK_VERSION:
+        raise Failure(
+            f"{LOCK_NAME} has lock format version {lock.get('version')}; this command writes "
+            f"version {LOCK_VERSION}. Run `cabal-purifier relock`."
+        )
+    return lock
+
+
+def stale_files(root, lock):
+    stale = []
+    for file, digest in lock["definition"].items():
+        path = root / file
+        if not path.exists() or sri_of_file(path) != digest:
+            stale.append(file)
+    return stale
+
+
+def parse_configuration(args):
+    configuration = {"tests": True, "benchmarks": True}
+    for arg in args:
+        if arg == "--no-tests":
+            configuration["tests"] = False
+        elif arg == "--no-benchmarks":
+            configuration["benchmarks"] = False
+        else:
+            raise Failure(f"unknown option {arg}")
+    return configuration
+
+
+def verb_lock(args, force):
+    root = project_root()
+    configuration = parse_configuration(args)
+    path = root / LOCK_NAME
+    if path.exists() and not force:
+        try:
+            lock = read_lock(root)
+        except Failure:
+            lock = None
+        if (
+            lock is not None
+            and lock["configuration"] == configuration
+            and not stale_files(root, lock)
+        ):
+            say(f"{LOCK_NAME} is up to date; `cabal-purifier relock` relocks regardless")
+            return
+    lock = make_lock(root, configuration)
+    path.write_text(json.dumps(lock, indent=2, sort_keys=True) + "\n")
+    say(
+        f"wrote {LOCK_NAME}: {len(lock['downloads'])} downloads, "
+        f"{len(lock['outputs']['packages'])} project packages"
+    )
+    check_lock(root, path, lock)
+    say("the lock resolves offline to the locked plan")
+
+
+def verb_cabal(args):
+    root = project_root()
+    lock = read_lock(root)
+    stale = stale_files(root, lock)
+    if stale:
+        say(
+            f"{', '.join(stale)} changed since the lock; running cabal the usual way until "
+            "`cabal-purifier lock` renews it"
+        )
+        os.execvp("cabal", ["cabal", *args])
+    work = root / "dist-newstyle" / "cabal-purifier"
+    sources = realize(root, root / LOCK_NAME, work / "sources")
+    env, project_args = offline_setup(root, lock, sources, work)
+    if not args:
+        raise Failure("give cabal a command, as in `cabal-purifier cabal build`")
+    os.execvpe("cabal", ["cabal", args[0], *project_args, *args[1:]], env)
+
+
+def verb_publish(args):
+    root = project_root()
+    if not args:
+        raise Failure("name the package to publish, as in `cabal-purifier publish my-package`")
+    package, rest = args[0], args[1:]
+    documentation = "--documentation" in rest
+    rest = [a for a in rest if a != "--documentation"]
+    lock = read_lock(root)
+    if package not in lock["outputs"]["packages"]:
+        raise Failure(
+            f"the project has no package {package}; it has "
+            + ", ".join(sorted(lock["outputs"]["packages"]))
+        )
+    version = lock["outputs"]["packages"][package]["version"]
+    artifact = "docs" if documentation else "sdist"
+    say(f"building the {artifact} of {package} with Nix")
+    out = run(
+        [
+            "nix-build",
+            "--no-out-link",
+            LIB / "publish.nix",
+            "--argstr",
+            "src",
+            root.resolve(),
+            "--argstr",
+            "package",
+            package,
+            "--argstr",
+            "artifact",
+            artifact,
+            "--argstr",
+            "nixpkgs",
+            NIXPKGS,
+        ],
+        capture=True,
+    )
+    built = Path(out.strip().splitlines()[-1])
+    suffix = "-docs.tar.gz" if documentation else ".tar.gz"
+    tarball = built / f"{package}-{version}{suffix}"
+    upload = ["cabal", "upload", *(["--documentation"] if documentation else []), *rest, tarball]
+    say(f"uploading {tarball}")
+    os.execvp("cabal", [str(c) for c in upload])
+
+
+def main(argv):
+    if not argv or argv[0] in ("-h", "--help", "help"):
+        print(__doc__)
+        return 0
+    verb, args = argv[0], argv[1:]
+    try:
+        if verb == "lock":
+            verb_lock(args, force=False)
+        elif verb == "relock":
+            verb_lock(args, force=True)
+        elif verb == "cabal":
+            verb_cabal(args)
+        elif verb == "publish":
+            verb_publish(args)
+        else:
+            raise Failure(f"unknown command {verb}; see `cabal-purifier --help`")
+    except Failure as error:
+        say(str(error))
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

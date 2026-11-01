@@ -1,0 +1,500 @@
+{
+  "cabalInstall": "3.16.1.0",
+  "configuration": {
+    "benchmarks": true,
+    "tests": true
+  },
+  "definition": {
+    "cabal.project": "sha256-EkzS8MtZCBHXZovvHkROsQbWISrCTBwqL+TqNREt30M=",
+    "hello.cabal": "sha256-t0FnrrYo5ml7lnlDpvPmm/uGH0hqq6SkAZY+VEng250="
+  },
+  "downloads": [
+    {
+      "hash": "sha256-FIVxvBiAAxASQdpsSRMdBzJOY6iO0oOoTe8ulpRZlhk=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/async-2.2.6/async-2.2.6.tar.gz"
+      ],
+      "path": "repository/async-2.2.6.tar.gz",
+      "url": "https://hackage.haskell.org/package/async-2.2.6.tar.gz"
+    },
+    {
+      "hash": "sha256-7Qt8EM6Syf/kVCDa3DjG0520hv82M/8TVnzJ9195sRI=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/hashable-1.5.1.0/hashable-1.5.1.0.tar.gz"
+      ],
+      "path": "repository/hashable-1.5.1.0.tar.gz",
+      "url": "https://hackage.haskell.org/package/hashable-1.5.1.0.tar.gz"
+    },
+    {
+      "hash": "sha256-2ECsg/JlsM+ipnj47HhifrUM+b4vBnxSyKQjnCm3GjU=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/random-1.3.1/random-1.3.1.tar.gz"
+      ],
+      "path": "repository/random-1.3.1.tar.gz",
+      "url": "https://hackage.haskell.org/package/random-1.3.1.tar.gz"
+    },
+    {
+      "hash": "sha256-ph1OizD1oWUm19MRcbZ0rnkk0iB/N4Bg0TNjvYeU3ow=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/splitmix-0.1.3.2/splitmix-0.1.3.2.tar.gz"
+      ],
+      "path": "repository/splitmix-0.1.3.2.tar.gz",
+      "url": "https://hackage.haskell.org/package/splitmix-0.1.3.2.tar.gz"
+    },
+    {
+      "hash": "sha256-xd4fszd+08X0zYUadx0azFw30va+8KSZKVwOiFfaVgU=",
+      "mirrors": [],
+      "path": "repository/unordered-containers-0.2.21.cabal",
+      "url": "https://hackage.haskell.org/package/unordered-containers-0.2.21/revision/2.cabal"
+    },
+    {
+      "hash": "sha256-OyrRUitUbmGWAVMlfR5dI57uxeg9qEfVy02Jalu3+cA=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/unordered-containers-0.2.21/unordered-containers-0.2.21.tar.gz"
+      ],
+      "path": "repository/unordered-containers-0.2.21.tar.gz",
+      "url": "https://hackage.haskell.org/package/unordered-containers-0.2.21.tar.gz"
+    }
+  ],
+  "externalPaths": [],
+  "outputs": {
+    "packages": {
+      "hello": {
+        "benchmarks": [],
+        "dir": ".",
+        "executables": [
+          "hello"
+        ],
+        "foreignLibraries": [],
+        "library": false,
+        "sublibraries": [],
+        "testSuites": [],
+        "version": "0.1.0"
+      }
+    }
+  },
+  "remotePackages": [],
+  "repository": [
+    {
+      "file": "async-2.2.6.tar.gz",
+      "from": "repository/async-2.2.6.tar.gz"
+    },
+    {
+      "file": "hashable-1.5.1.0.tar.gz",
+      "from": "repository/hashable-1.5.1.0.tar.gz"
+    },
+    {
+      "file": "random-1.3.1.tar.gz",
+      "from": "repository/random-1.3.1.tar.gz"
+    },
+    {
+      "file": "splitmix-0.1.3.2.tar.gz",
+      "from": "repository/splitmix-0.1.3.2.tar.gz"
+    },
+    {
+      "file": "unordered-containers-0.2.21.cabal",
+      "from": "repository/unordered-containers-0.2.21.cabal"
+    },
+    {
+      "file": "unordered-containers-0.2.21.tar.gz",
+      "from": "repository/unordered-containers-0.2.21.tar.gz"
+    }
+  ],
+  "systems": {
+    "aarch64-linux": {
+      "compiler": "ghc-9.10.3",
+      "units": [
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "array",
+          "version": "0.5.8.0"
+        },
+        {
+          "flags": {
+            "bench": false,
+            "debug-auto-label": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "async",
+          "version": "2.2.6"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "base",
+          "version": "4.20.2.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "binary",
+          "version": "0.8.9.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "bytestring",
+          "version": "0.12.2.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "containers",
+          "version": "0.7"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "deepseq",
+          "version": "1.5.0.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "exceptions",
+          "version": "0.10.9"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "filepath",
+          "version": "1.5.4.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-bignum",
+          "version": "1.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-boot-th",
+          "version": "9.10.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-internal",
+          "version": "9.1003.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-prim",
+          "version": "0.12.0"
+        },
+        {
+          "flags": {
+            "arch-native": false,
+            "random-initial-seed": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "hashable",
+          "version": "1.5.1.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": true,
+          "name": "hello",
+          "version": "0.1.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "mtl",
+          "version": "2.3.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "os-string",
+          "version": "2.0.7"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "pretty",
+          "version": "1.1.3.6"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "random",
+          "version": "1.3.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "rts",
+          "version": "1.0.2"
+        },
+        {
+          "flags": {
+            "optimised-mixer": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "splitmix",
+          "version": "0.1.3.2"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "stm",
+          "version": "2.5.3.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "template-haskell",
+          "version": "2.22.0.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "text",
+          "version": "2.1.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "transformers",
+          "version": "0.6.1.1"
+        },
+        {
+          "flags": {
+            "debug": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "unordered-containers",
+          "version": "0.2.21"
+        }
+      ]
+    },
+    "x86_64-linux": {
+      "compiler": "ghc-9.10.3",
+      "units": [
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "array",
+          "version": "0.5.8.0"
+        },
+        {
+          "flags": {
+            "bench": false,
+            "debug-auto-label": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "async",
+          "version": "2.2.6"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "base",
+          "version": "4.20.2.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "binary",
+          "version": "0.8.9.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "bytestring",
+          "version": "0.12.2.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "containers",
+          "version": "0.7"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "deepseq",
+          "version": "1.5.0.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "exceptions",
+          "version": "0.10.9"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "filepath",
+          "version": "1.5.4.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-bignum",
+          "version": "1.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-boot-th",
+          "version": "9.10.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-internal",
+          "version": "9.1003.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-prim",
+          "version": "0.12.0"
+        },
+        {
+          "flags": {
+            "arch-native": false,
+            "random-initial-seed": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "hashable",
+          "version": "1.5.1.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": true,
+          "name": "hello",
+          "version": "0.1.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "mtl",
+          "version": "2.3.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "os-string",
+          "version": "2.0.7"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "pretty",
+          "version": "1.1.3.6"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "random",
+          "version": "1.3.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "rts",
+          "version": "1.0.2"
+        },
+        {
+          "flags": {
+            "optimised-mixer": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "splitmix",
+          "version": "0.1.3.2"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "stm",
+          "version": "2.5.3.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "template-haskell",
+          "version": "2.22.0.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "text",
+          "version": "2.1.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "transformers",
+          "version": "0.6.1.1"
+        },
+        {
+          "flags": {
+            "debug": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "unordered-containers",
+          "version": "0.2.21"
+        }
+      ]
+    }
+  },
+  "version": 1
+}

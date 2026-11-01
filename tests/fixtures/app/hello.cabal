@@ -1,0 +1,9 @@
+cabal-version: 3.0
+name: hello
+version: 0.1.0
+build-type: Simple
+
+executable hello
+  main-is: Main.hs
+  build-depends: base, random, async
+  default-language: Haskell2010
