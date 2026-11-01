@@ -11,8 +11,14 @@
   src,
   # The nixpkgs the command was built with.
   nixpkgs,
+  # The source of github:nix-purifiers/purifier the command was built with.
+  purifier,
 }:
-(import nixpkgs { }).callPackage ./repository.nix {
+let
+  pkgs = import nixpkgs { };
+in
+pkgs.callPackage ./repository.nix {
+  purifier = import ./purifier.nix { inherit pkgs purifier; };
   lockFile = /. + lockFile;
   src = /. + src;
 }

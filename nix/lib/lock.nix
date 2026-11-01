@@ -4,7 +4,7 @@
 # lockfile holds:
 #
 #   downloads        the locked downloads, in the shapes of the shared
-#                    nix-purifiers library (see fetch.nix)
+#                    nix-purifiers library (github:nix-purifiers/purifier)
 #   repository       the files of the local no-index repository that the
 #                    builds resolve Cabal's packages from: each is a
 #                    download (`from`), a tarball packed from a locked
@@ -99,9 +99,6 @@ assert
 lock
 // {
   inherit storeName downloadsByPath;
-
-  # The fetch name of a download: its file name, made a valid store name.
-  downloadName = download: storeName (baseNameOf download.path);
 
   # The download a repository file or remote package names.
   download =

@@ -13,10 +13,14 @@
   artifact,
   # The nixpkgs the command was built with.
   nixpkgs,
+  # The source of github:nix-purifiers/purifier the command was built with.
+  purifier,
 }:
 let
   pkgs = import nixpkgs { };
-  buildCabalProject = pkgs.callPackage ./build-cabal-project.nix { };
+  buildCabalProject = pkgs.callPackage ./build-cabal-project.nix {
+    purifier = import ./purifier.nix { inherit pkgs purifier; };
+  };
   root = /. + src;
   lock = import ./lock.nix { lockFile = root + "/cabal-purifier.lock.json"; };
   project = buildCabalProject {

@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: MIT
 #
 # The cabal-purifier command: bin/cabal-purifier on nixpkgs' Python, with
-# the Nix library it realizes lockfiles with and the nixpkgs that
+# the Nix library it realizes lockfiles with, the source of the shared
+# library that fetches the downloads, and the nixpkgs that
 # `cabal-purifier publish` builds with. The user's PATH comes first, so the
 # lock run plans with the user's GHC and cabal when there are any, and with
 # nixpkgs' otherwise.
@@ -17,6 +18,9 @@
   nix-prefetch-git,
   path,
   version,
+  # The source of github:nix-purifiers/purifier, which the cabal-purifier
+  # package overlay passes.
+  purifierSource ? throw "cabal-purifier: the cli package needs `purifierSource`, which the cabal-purifier package overlay passes",
 }:
 stdenvNoCC.mkDerivation {
   pname = "cabal-purifier";
@@ -34,6 +38,7 @@ stdenvNoCC.mkDerivation {
       --add-flags "$out/libexec/cabal-purifier.py" \
       --set CABAL_PURIFIER_LIB ${../../nix/lib} \
       --set CABAL_PURIFIER_NIXPKGS ${path} \
+      --set CABAL_PURIFIER_PURIFIER ${purifierSource} \
       --set CABAL_PURIFIER_SELF "$out/bin/cabal-purifier" \
       --suffix PATH : ${
         lib.makeBinPath [

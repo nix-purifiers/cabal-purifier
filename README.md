@@ -156,8 +156,12 @@ local packages outside the project, and `srcFilter`.
 
 ### How the build resolves offline
 
-The builder makes a Cabal no-index repository (`file+noindex://`) of the
-locked sources. It holds each package tarball, each Hackage revision of a
+The lockfile records each download as an entry of the library that the
+nix-purifiers share
+([github:nix-purifiers/purifier](https://github.com/nix-purifiers/purifier)),
+and that library's `fetchEntry` fetches it. The builder makes a Cabal
+no-index repository (`file+noindex://`) of the locked sources. It holds
+each package tarball, each Hackage revision of a
 package description as `<name>-<version>.cabal` beside its tarball, and
 each package from a source repository as a tarball packed from its
 locked checkout. The build runs cabal with that repository as its only

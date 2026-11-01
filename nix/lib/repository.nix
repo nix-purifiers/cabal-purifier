@@ -18,29 +18,31 @@
 # build reads it through a writable directory of links to repo/.
 {
   lib,
+  pkgs,
   runCommand,
-  fetchgit,
-  fetchhg,
-  fetchdarcs,
   gnutar,
   gzip,
+  # The `purifier` library namespace of github:nix-purifiers/purifier,
+  # whose `fetchEntry` fetches each download of the lock.
+  purifier,
   lockFile,
   # The project root, for repository files that the project itself holds.
   src ? null,
-  # Replaces the built-in fetcher for files; see fetch.nix.
+  # Replace nixpkgs' fetchurl for files and nixpkgs' fetchgit for git
+  # checkouts, as for downloads that need credentials. `fetchEntry` calls
+  # each with the arguments of the nixpkgs fetcher of its name.
   fetchurl ? null,
+  fetchgit ? null,
 }:
 let
   lock = import ./lock.nix { inherit lockFile; };
-  fetch = import ./fetch.nix {
-    inherit
-      lock
-      fetchgit
-      fetchhg
-      fetchdarcs
-      fetchurl
-      ;
-  };
+  fetch = purifier.fetchEntry (
+    {
+      inherit pkgs;
+    }
+    // lib.optionalAttrs (fetchurl != null) { inherit fetchurl; }
+    // lib.optionalAttrs (fetchgit != null) { inherit fetchgit; }
+  );
 
   linked = lib.filter (f: f ? from) lock.repository;
   packed = lib.filter (f: f ? pack) lock.repository;

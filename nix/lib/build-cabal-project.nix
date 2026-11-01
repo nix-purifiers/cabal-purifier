@@ -45,6 +45,9 @@
   haskell,
   cabal-install,
   python3,
+  # The `purifier` library namespace of github:nix-purifiers/purifier. The
+  # cabal-purifier package overlay passes it.
+  purifier,
 }:
 {
   # The root of the Cabal project, where cabal.project (or the package's
@@ -67,7 +70,9 @@
   # More arguments for every cabal command of the builds, such as
   # `--ghc-options=-Werror`.
   cabalFlags ? [ ],
-  # Replaces the built-in fetcher for files; see fetch.nix.
+  # Replaces nixpkgs' fetchurl for files. It is called with
+  # { name, urls, hash }, and is the place for credentials (nixpkgs'
+  # fetchurl takes `netrcPhase`).
   fetchurl ? null,
   # Replaces nixpkgs' fetchgit for source repositories, as for a private
   # repository that needs credentials. It is called with the arguments of
@@ -112,9 +117,15 @@ let
       haskell.compiler.${ghcAttr}
         or (throw "cabal-purifier: nixpkgs has no haskell.compiler.${ghcAttr} for the ${plan.compiler} the lock was made with; pass `ghc`.");
 
-  repository = callPackage ./repository.nix (
-    { inherit lockFile src fetchurl; } // lib.optionalAttrs (fetchgit != null) { inherit fetchgit; }
-  );
+  repository = callPackage ./repository.nix {
+    inherit
+      purifier
+      lockFile
+      src
+      fetchurl
+      fetchgit
+      ;
+  };
 
   # The constraints that make Cabal resolve to the locked plan: each
   # package at its locked version and flags, and each package the compiler

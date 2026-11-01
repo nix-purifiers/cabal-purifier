@@ -20,8 +20,10 @@ build it offline.
       uploads that file with `cabal upload`.
 
 The command reads these environment variables, which its Nix package sets:
-CABAL_PURIFIER_LIB (the directory of its Nix library) and
-CABAL_PURIFIER_NIXPKGS (the nixpkgs it builds with).
+CABAL_PURIFIER_LIB (the directory of its Nix library),
+CABAL_PURIFIER_NIXPKGS (the nixpkgs it builds with) and
+CABAL_PURIFIER_PURIFIER (the source of github:nix-purifiers/purifier, the
+library that fetches the locked downloads).
 """
 
 import base64
@@ -51,6 +53,7 @@ SYSTEMS = {
 
 LIB = Path(os.environ.get("CABAL_PURIFIER_LIB", Path(__file__).resolve().parent.parent / "nix/lib"))
 NIXPKGS = os.environ.get("CABAL_PURIFIER_NIXPKGS", "<nixpkgs>")
+PURIFIER = os.environ.get("CABAL_PURIFIER_PURIFIER", "")
 
 
 class Failure(Exception):
@@ -327,13 +330,14 @@ def lock_source_repository(repo, name, version, checkouts):
                 f"the Mercurial source of {name} names no tag; give it a `tag`, the "
                 "changeset the lock pins"
             )
+        # Cabal clones a Mercurial source with its subrepositories.
         expr = (
             f"(import {NIXPKGS} {{}}).fetchhg {{ url = {json.dumps(location)}; "
-            f"rev = {json.dumps(tag)}; hash = \"\"; }}"
+            f"rev = {json.dumps(tag)}; fetchSubrepos = true; hash = \"\"; }}"
         )
         download = {
             "path": source_path("hg", location, tag),
-            "hg": {"url": location, "rev": tag},
+            "hg": {"url": location, "rev": tag, "subrepos": True},
             "hash": nix_fetcher_hash(expr),
         }
     elif kind == "darcs":
@@ -616,6 +620,15 @@ def make_lock(root, configuration, previous_index_state, update):
 # The locked sources, for the check after a lock and for `cabal`
 
 
+def purifier_source():
+    if not PURIFIER:
+        raise Failure(
+            "CABAL_PURIFIER_PURIFIER is not set; run cabal-purifier from its Nix package, "
+            "which sets it to the source of github:nix-purifiers/purifier"
+        )
+    return PURIFIER
+
+
 def realize(root, lock_path, out_link):
     out_link.parent.mkdir(parents=True, exist_ok=True)
     try:
@@ -632,6 +645,9 @@ def realize(root, lock_path, out_link):
                 "--argstr",
                 "nixpkgs",
                 NIXPKGS,
+                "--argstr",
+                "purifier",
+                purifier_source(),
                 "--out-link",
                 out_link,
             ],
@@ -929,6 +945,9 @@ def verb_publish(args):
             "--argstr",
             "nixpkgs",
             NIXPKGS,
+            "--argstr",
+            "purifier",
+            purifier_source(),
         ],
         capture=True,
     )
