@@ -67,6 +67,47 @@ case "$warning" in
   *) fail "a stale lock gave no warning: $warning" ;;
 esac
 
+echo "== a damaged lockfile gives an error that names the fix"
+expect_failure() {
+  local dir=$1 expected=$2 message
+  if message=$(cd "$dir" && "$cli" cabal build 2>&1); then
+    fail "cabal build succeeded with a damaged lockfile in $dir"
+  fi
+  case "$message" in
+    *"$expected"*"cabal-purifier relock"*) ;;
+    *) fail "the error for $dir did not say $expected and name relock: $message" ;;
+  esac
+}
+cp -r "$work/fixtures/app" "$work/malformed"
+echo '{ "version": 1, ' > "$work/malformed/cabal-purifier.lock.json"
+expect_failure "$work/malformed" "is not valid JSON"
+
+cp -r "$work/fixtures/app" "$work/missing"
+python3 - "$work/missing/cabal-purifier.lock.json" <<'EOF'
+import json
+import sys
+
+path = sys.argv[1]
+lock = json.load(open(path))
+lock["downloads"] = [d for d in lock["downloads"] if d["path"] != "repository/random-1.3.1.tar.gz"]
+json.dump(lock, open(path, "w"))
+EOF
+expect_failure "$work/missing" "names no download repository/random-1.3.1.tar.gz"
+
+cp -r "$work/fixtures/app" "$work/tampered"
+python3 - "$work/tampered/cabal-purifier.lock.json" <<'EOF'
+import json
+import sys
+
+path = sys.argv[1]
+lock = json.load(open(path))
+for download in lock["downloads"]:
+    if download["path"] == "repository/random-1.3.1.tar.gz":
+        download["hash"] = "sha256-" + "A" * 43 + "="
+json.dump(lock, open(path, "w"))
+EOF
+expect_failure "$work/tampered" "hash mismatch means"
+
 echo "== publish uploads the tarballs Nix built"
 python3 "$root/tests/fake_hackage.py" "$work/port" "$work/uploads" &
 server=$!

@@ -31,6 +31,7 @@
   "externalPaths": [
     "../shared-package"
   ],
+  "indexState": null,
   "outputs": {
     "packages": {
       "app": {
@@ -64,6 +65,7 @@
   "remotePackages": [
     {
       "from": "remote/f400c2015edf7836-data-default-class-0.1.2.2.tar.gz",
+      "package": "data-default-class-0.1.2.2",
       "uri": "https://hackage.haskell.org/package/data-default-class-0.1.2.2/data-default-class-0.1.2.2.tar.gz"
     }
   ],

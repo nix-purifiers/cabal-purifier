@@ -1,0 +1,326 @@
+# SPDX-License-Identifier: MIT
+"""Unit tests for the lock run's parsing and its URL and path logic
+(bin/cabal-purifier), the offline copy of a project's configuration
+(nix/lib/offline_project.py) and the plan check (nix/lib/check_plan.py).
+
+Run them from the repository root with `python3 -m unittest discover -s
+tests/unit`. The flake's `unit` check runs them in the sandbox."""
+
+import hashlib
+import importlib.machinery
+import importlib.util
+import io
+import json
+import os
+import sys
+import tarfile
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(os.environ.get("CABAL_PURIFIER_ROOT", Path(__file__).resolve().parents[2]))
+
+
+def load(name, path):
+    loader = importlib.machinery.SourceFileLoader(name, str(path))
+    spec = importlib.util.spec_from_loader(name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+os.environ.setdefault("CABAL_PURIFIER_LIB", str(ROOT / "nix/lib"))
+cli = load("cabal_purifier", ROOT / "bin/cabal-purifier")
+offline = load("offline_project", ROOT / "nix/lib/offline_project.py")
+check_plan = load("check_plan", ROOT / "nix/lib/check_plan.py")
+
+
+class HttpsTest(unittest.TestCase):
+    def test_scp_style_url(self):
+        self.assertEqual(cli.https("git@github.com:owner/repo.git"), "https://github.com/owner/repo.git")
+
+    def test_ssh_url_with_user_and_port(self):
+        self.assertEqual(
+            cli.https("ssh://git@gitlab.example.org:2222/group/repo.git"),
+            "https://gitlab.example.org/group/repo.git",
+        )
+
+    def test_https_url_is_unchanged(self):
+        self.assertEqual(cli.https("https://github.com/owner/repo"), "https://github.com/owner/repo")
+
+
+class HashTest(unittest.TestCase):
+    def test_sri_from_hex(self):
+        digest = hashlib.sha256(b"cabal").hexdigest()
+        self.assertEqual(
+            cli.sri_from_hex(digest), "sha256-" + __import__("base64").b64encode(bytes.fromhex(digest)).decode()
+        )
+
+    def test_source_path_is_deterministic_and_distinguishes_its_parts(self):
+        a = cli.source_path("hg", "http://host/repo", "abc")
+        self.assertEqual(a, cli.source_path("hg", "http://host/repo", "abc"))
+        self.assertNotEqual(a, cli.source_path("hg", "http://host/repo", "abd"))
+        self.assertTrue(a.startswith("source/hg-"))
+
+
+class ComponentsTest(unittest.TestCase):
+    def test_per_component_units(self):
+        units = [
+            {"component-name": "lib"},
+            {"component-name": "lib:internal"},
+            {"component-name": "exe:tool"},
+            {"component-name": "test:spec"},
+            {"component-name": "bench:speed"},
+            {"component-name": "flib:ffi"},
+            {"component-name": "setup"},
+        ]
+        self.assertEqual(
+            cli.components_of(units),
+            {
+                "library": True,
+                "sublibraries": ["internal"],
+                "executables": ["tool"],
+                "testSuites": ["spec"],
+                "benchmarks": ["speed"],
+                "foreignLibraries": ["ffi"],
+            },
+        )
+
+    def test_custom_setup_unit_lists_its_components(self):
+        units = [{"components": {"lib": {}, "exe:tool": {}, "setup": {}}}]
+        components = cli.components_of(units)
+        self.assertTrue(components["library"])
+        self.assertEqual(components["executables"], ["tool"])
+
+
+class ConstraintsTest(unittest.TestCase):
+    def test_constraints(self):
+        units = [
+            {"name": "base", "version": "4.20.2.0", "flags": {}, "installed": True, "local": False},
+            {"name": "async", "version": "2.2.6", "flags": {"bench": False, "debug": True}, "installed": False, "local": False},
+            {"name": "random", "version": "1.3.1", "flags": {}, "installed": False, "local": False},
+        ]
+        self.assertEqual(
+            cli.constraints_of(units),
+            [
+                "any.base installed",
+                "any.async ==2.2.6",
+                "any.async -bench +debug",
+                "any.random ==1.3.1",
+            ],
+        )
+
+
+class RevisionsTest(unittest.TestCase):
+    """index_revisions picks the index entry whose hash the plan used,
+    which need not be the newest one."""
+
+    def index(self, directory, entries):
+        repo = Path(directory) / "hackage.haskell.org"
+        repo.mkdir()
+        with tarfile.open(repo / "01-index.tar", "w") as tar:
+            for name, text in entries:
+                info = tarfile.TarInfo(name)
+                info.size = len(text)
+                tar.addfile(info, io.BytesIO(text))
+
+    def test_revision_the_plan_used(self):
+        original = b"name: pkg\nversion: 1.0\n"
+        first = b"name: pkg\nversion: 1.0\nx-revision: 1\n"
+        second = b"name: pkg\nversion: 1.0\nx-revision: 2\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            self.index(tmp, [("pkg/1.0/pkg.cabal", t) for t in (original, first, second)])
+            for text, revision in ((original, 0), (first, 1), (second, 2)):
+                wanted = {("pkg", "1.0"): hashlib.sha256(text).hexdigest()}
+                self.assertEqual(cli.index_revisions(tmp, wanted), {("pkg", "1.0"): revision})
+
+    def test_missing_description(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.index(tmp, [("other/1.0/other.cabal", b"name: other\n")])
+            self.assertEqual(cli.index_revisions(tmp, {("pkg", "1.0"): "00"}), {})
+
+
+class LockProblemsTest(unittest.TestCase):
+    def lock(self):
+        return {
+            "downloads": [{"path": "repository/a-1.tar.gz"}, {"path": "remote/x"}],
+            "repository": [{"file": "a-1.tar.gz", "from": "repository/a-1.tar.gz"}],
+            "remotePackages": [{"uri": "https://e/x.tar.gz", "from": "remote/x", "package": "x-2"}],
+            "systems": {
+                "x86_64-linux": {
+                    "units": [
+                        {"name": "a", "version": "1", "installed": False, "local": False},
+                        {"name": "x", "version": "2", "installed": False, "local": False},
+                        {"name": "base", "version": "4", "installed": True, "local": False},
+                        {"name": "me", "version": "0", "installed": False, "local": True},
+                    ]
+                }
+            },
+        }
+
+    def test_consistent_lock(self):
+        self.assertEqual(cli.lock_problems(self.lock()), [])
+
+    def test_missing_download(self):
+        lock = self.lock()
+        lock["downloads"] = [{"path": "remote/x"}]
+        self.assertEqual(
+            cli.lock_problems(lock),
+            [
+                "the repository file a-1.tar.gz names no download repository/a-1.tar.gz",
+            ],
+        )
+
+    def test_unit_without_source(self):
+        lock = self.lock()
+        lock["repository"] = []
+        self.assertIn(
+            "the plan for x86_64-linux uses a-1, which no locked source provides",
+            cli.lock_problems(lock),
+        )
+
+
+class ReadLockTest(unittest.TestCase):
+    def read(self, text):
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / cli.LOCK_NAME).write_text(text)
+            return cli.read_lock(Path(tmp))
+
+    def test_malformed_json(self):
+        with self.assertRaisesRegex(cli.Failure, "not valid JSON.*relock"):
+            self.read("{ not json")
+
+    def test_other_version(self):
+        with self.assertRaisesRegex(cli.Failure, "version 99.*relock"):
+            self.read(json.dumps({"version": 99}))
+
+    def test_missing_section(self):
+        with self.assertRaisesRegex(cli.Failure, "damaged: it has no definition"):
+            self.read(json.dumps({"version": cli.LOCK_VERSION, "configuration": {}}))
+
+
+class OfflineProjectTest(unittest.TestCase):
+    PROJECT = """packages:
+  app
+  https://example.org/pkg-1.0.tar.gz
+
+index-state: 2026-01-01T00:00:00Z
+active-repositories: hackage.haskell.org
+
+source-repository-package
+  type: git
+  location: https://github.com/owner/repo.git
+  tag: abc
+
+repository private
+  url: https://packages.example.org/
+
+package app
+  ghc-options: -Wall
+
+-- a comment stays
+tests: True
+"""
+
+    def write(self, files, remote=None, constraints=()):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        project = Path(tmp.name) / "project"
+        project.mkdir()
+        for name, text in files.items():
+            (project / name).parent.mkdir(parents=True, exist_ok=True)
+            (project / name).write_text(text)
+        out = Path(tmp.name) / "out"
+        main = offline.write(project, out, remote or {}, constraints)
+        return main.read_text(), out
+
+    def test_rewrite(self):
+        text, _ = self.write(
+            {"cabal.project": self.PROJECT},
+            remote={"https://example.org/pkg-1.0.tar.gz": "/store/remote/0"},
+            constraints=["any.pkg ==1.0"],
+        )
+        self.assertNotIn("source-repository-package", text)
+        self.assertNotIn("repository private", text)
+        self.assertNotIn("index-state", text)
+        self.assertNotIn("active-repositories", text)
+        self.assertIn("/store/remote/0", text)
+        self.assertNotIn("https://example.org", text)
+        self.assertIn("package app\n  ghc-options: -Wall", text)
+        self.assertIn("-- a comment stays", text)
+        self.assertIn("tests: True", text)
+        self.assertTrue(text.rstrip().endswith("constraints:\n  any.pkg ==1.0"))
+
+    def test_implicit_project(self):
+        text, _ = self.write({"pkg.cabal": "name: pkg\n"})
+        self.assertEqual(text, "packages: ./*.cabal\n")
+
+    def test_companion_files(self):
+        _, out = self.write(
+            {
+                "cabal.project": "packages: .\n",
+                "cabal.project.freeze": "index-state: 2026-01-01T00:00:00Z\nconstraints: any.a ==1\n",
+            }
+        )
+        self.assertEqual((out / "cabal.project.freeze").read_text(), "constraints: any.a ==1\n")
+        self.assertFalse((out / "cabal.project.local").exists())
+
+    def test_import_is_inlined(self):
+        text, _ = self.write(
+            {
+                "cabal.project": "packages: .\nimport: config/common.project\n",
+                "config/common.project": "index-state: 2026-01-01T00:00:00Z\nghc-options: -O2\n",
+            }
+        )
+        self.assertIn("ghc-options: -O2", text)
+        self.assertNotIn("index-state", text)
+        self.assertNotIn("import:", text)
+
+    def test_import_by_url_is_refused(self):
+        with self.assertRaisesRegex(offline.ProjectError, "import by URL"):
+            self.write({"cabal.project": "import: https://example.org/stackage.config\n"})
+
+
+class CheckPlanTest(unittest.TestCase):
+    def run_check(self, plan_units, lock_units):
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = Path(tmp) / "plan.json"
+            units = Path(tmp) / "units.json"
+            plan.write_text(json.dumps({"install-plan": plan_units}))
+            units.write_text(json.dumps(lock_units))
+            stderr = io.StringIO()
+            old, sys.stderr = sys.stderr, stderr
+            try:
+                return check_plan.main(plan, units), stderr.getvalue()
+            finally:
+                sys.stderr = old
+
+    PLAN = [
+        {"type": "configured", "pkg-name": "a", "pkg-version": "1", "style": "global", "flags": {"f": True}},
+        {"type": "configured", "pkg-name": "x", "pkg-version": "2", "style": "local", "flags": {}},
+        {"type": "pre-existing", "pkg-name": "base", "pkg-version": "4"},
+    ]
+    LOCK = [
+        {"name": "a", "version": "1", "flags": {"f": True}, "installed": False, "local": False},
+        {"name": "x", "version": "2", "flags": {}, "installed": False, "local": False},
+        {"name": "base", "version": "4", "flags": {}, "installed": True, "local": False},
+    ]
+
+    def test_matching_plan_ignores_local_style(self):
+        self.assertEqual(self.run_check(self.PLAN, self.LOCK)[0], 0)
+
+    def test_other_version(self):
+        plan = [dict(self.PLAN[0], **{"pkg-version": "1.1"})] + self.PLAN[1:]
+        code, message = self.run_check(plan, self.LOCK)
+        self.assertEqual(code, 1)
+        self.assertIn("locked: a-1", message)
+        self.assertIn("built:  a-1.1", message)
+        self.assertIn("relock", message)
+
+    def test_other_flags(self):
+        plan = [dict(self.PLAN[0], flags={"f": False})] + self.PLAN[1:]
+        self.assertEqual(self.run_check(plan, self.LOCK)[0], 1)
+
+
+if __name__ == "__main__":
+    unittest.main()

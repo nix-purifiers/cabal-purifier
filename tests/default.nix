@@ -39,9 +39,44 @@ let
     doCheck = true;
   };
   greeting = workspace.packages.greeting;
+
+  # The negative checks: the app fixture with a lockfile changed the ways
+  # a stale or damaged lockfile is wrong. Each must fail to evaluate, with
+  # the library's message, before anything builds.
+  appLock = lib.importJSON ./fixtures/app/cabal-purifier.lock.json;
+  withLock =
+    name: lock: args:
+    purified.buildCabalProject (
+      {
+        src = ./fixtures/app;
+        lockFile = builtins.toFile "${name}.lock.json" (builtins.toJSON lock);
+      }
+      // args
+    );
+  evaluationFails =
+    name: build:
+    assert !(builtins.tryEval build.project.drvPath).success;
+    purified.runCommand name { } "touch $out";
+  withoutDownload =
+    path: appLock // { downloads = builtins.filter (d: d.path != path) appLock.downloads; };
+  withoutRepositoryFile =
+    file: appLock // { repository = builtins.filter (f: f.file != file) appLock.repository; };
 in
 {
   inherit cli;
+
+  # The unit tests of the lock run, the offline project copy and the plan
+  # check (tests/unit).
+  unit =
+    purified.runCommand "unit-tests"
+      {
+        nativeBuildInputs = [ purified.python3 ];
+        CABAL_PURIFIER_ROOT = ../.;
+      }
+      ''
+        python3 -m unittest discover -v -s ${./unit}
+        touch "$out"
+      '';
 
   # hello builds against random, async and unordered-containers from the
   # locked repository; unordered-containers comes with its Hackage
@@ -76,6 +111,39 @@ in
         echo "$files" | grep -qx greeting-0.2.0/src/Greeting.hs
         touch "$out"
       '';
+
+  # The control for the negative checks: the unchanged lockfile, passed
+  # the same way, evaluates.
+  negative-control =
+    assert (builtins.tryEval (withLock "unchanged" appLock { }).project.drvPath).success;
+    purified.runCommand "negative-control" { } "touch $out";
+
+  # A package description that changed since the lock.
+  negative-stale-lock = evaluationFails "negative-stale-lock" (
+    withLock "stale" (
+      appLock
+      // {
+        definition = appLock.definition // {
+          "hello.cabal" = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+        };
+      }
+    ) { }
+  );
+
+  # A repository file that names a download the lock does not hold.
+  negative-missing-download = evaluationFails "negative-missing-download" (
+    withLock "missing-download" (withoutDownload "repository/random-1.3.1.tar.gz") { }
+  );
+
+  # A package of the plan that no locked source provides.
+  negative-missing-source = evaluationFails "negative-missing-source" (
+    withLock "missing-source" (withoutRepositoryFile "random-1.3.1.tar.gz") { }
+  );
+
+  # A system the lock has no plan for.
+  negative-unknown-system = evaluationFails "negative-unknown-system" (
+    withLock "unknown-system" appLock { system = "riscv64-linux"; }
+  );
 
   # The documentation tarball for Hackage holds the module's page.
   fixture-workspace-docs =

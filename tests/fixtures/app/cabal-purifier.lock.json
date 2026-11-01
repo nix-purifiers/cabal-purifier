@@ -57,6 +57,7 @@
     }
   ],
   "externalPaths": [],
+  "indexState": null,
   "outputs": {
     "packages": {
       "hello": {
