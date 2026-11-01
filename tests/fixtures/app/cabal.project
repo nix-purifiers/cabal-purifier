@@ -1,1 +1,4 @@
 packages: .
+
+-- Pins the Hackage index, so that a relock resolves to the same plan.
+index-state: 2026-11-01T07:32:37Z

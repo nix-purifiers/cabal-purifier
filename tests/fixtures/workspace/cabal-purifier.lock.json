@@ -6,7 +6,7 @@
   },
   "definition": {
     "app/app.cabal": "sha256-AuDRWJImXtKarrti7trwnbc7Fw7hxJOWP2BOxIDguK0=",
-    "cabal.project": "sha256-CnDJu7QPWoAjLNguQwkWm23mcifr/qQ+tQetPLUdKPo=",
+    "cabal.project": "sha256-oAVnkiBpnAjXvcKBdROj4zYOiBtkwdnObYetxAshsgY=",
     "greeting/greeting.cabal": "sha256-I6816i58Wj2RsiHkupvwOGFZxwHwvk8EUfQujhiv+Tw="
   },
   "downloads": [

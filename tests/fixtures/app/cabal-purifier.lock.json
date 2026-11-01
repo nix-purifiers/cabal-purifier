@@ -5,7 +5,7 @@
     "tests": true
   },
   "definition": {
-    "cabal.project": "sha256-EkzS8MtZCBHXZovvHkROsQbWISrCTBwqL+TqNREt30M=",
+    "cabal.project": "sha256-iWBoVwGSHFNc+jpIr0NTS7agd/00DwFFyzPgjHPEvow=",
     "hello.cabal": "sha256-t0FnrrYo5ml7lnlDpvPmm/uGH0hqq6SkAZY+VEng250="
   },
   "downloads": [
