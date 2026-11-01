@@ -60,7 +60,12 @@ let
 
   supportedVersion = import ./lock-version.nix;
 
-  raw = builtins.fromJSON (builtins.readFile lockFile);
+  # A lockfile that is not valid JSON cannot become a problem, because Nix
+  # cannot catch a parse error, so the error names the command that fixes
+  # it.
+  raw = builtins.addErrorContext "while reading ${toString lockFile}, which is not valid JSON: run `cabal-purifier lock` to write it again" (
+    builtins.fromJSON (builtins.readFile lockFile)
+  );
 
   damaged =
     problem:

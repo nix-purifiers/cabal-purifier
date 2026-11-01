@@ -124,11 +124,14 @@ exits with an error that says to run `cabal-purifier lock`.
 
 To lock after a change, or to move dependencies:
 
-- `cabal-purifier lock` records the resolution that Cabal makes, as it is. The plan
-  uses the package index as of the last lock, so adding a dependency
-  keeps every other package where it was, and locking an unchanged
-  project writes the same file byte for byte. A `cabal.project.freeze`
-  stays as it is.
+- `cabal-purifier lock` records the resolution that Cabal makes, as it
+  is. A `cabal.project.freeze` stays as it is, and Cabal resolves to the
+  versions it pins. The freeze file records versions, flags and an index
+  state but no hashes, so `lock` writes `cabal-purifier.lock.json` every
+  time, with the hashes and the Hackage revisions that the build needs.
+  Without a freeze file, the plan uses the package index as of the last
+  lock, so adding a dependency keeps every other package where it was.
+  Locking an unchanged project writes the same file byte for byte.
 - `cabal-purifier update [<package>...]` re-resolves the named packages,
   or every package, with the newest package index, writes
   `cabal.project.freeze` again when the project has one, and then locks.
