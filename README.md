@@ -31,7 +31,11 @@ cabal-purifier is part of [nix-purifiers](https://nix-purifiers.github.io).
 
 `cabal-purifier lock` runs `cabal update` in an empty Cabal directory, so
 your own Cabal configuration does not apply, and then plans the project
-with `cabal build all --dry-run`, with tests and benchmarks enabled. It
+with `cabal build all --dry-run`, with tests and benchmarks enabled. The
+package index is the one thing it keeps between runs, in
+`~/.cache/cabal-purifier` (or under `XDG_CACHE_HOME`), because Cabal
+updates an index it already has in place: the first lock downloads all of
+Hackage's index, and later ones take seconds. It
 plans once for each system. Cabal takes the platform it plans for from
 the compiler's `ghc --info`, so the command plans for the other system
 through a GHC wrapper that reports that system and never compiles
@@ -67,9 +71,15 @@ The lock run plans with the `ghc` on your `PATH`, or the compiler that
 `with-compiler` names, and with the command's own GHC otherwise. Nix builds
 with nixpkgs' GHC of the exact version the lock names.
 
-Hackage keeps publishing new versions, so a lock made later can resolve to
-newer ones. An `index-state` in `cabal.project` pins the package index, and
-a relock then gives the same plan.
+The lockfile records the index state it planned with (`indexState`), and
+`lock` and `relock` plan with that index state again. Adding a dependency
+and locking therefore keeps every other package where it was, and a
+relock reproduces the lockfile byte for byte. `--update` plans with the
+newest index instead, which is how to upgrade dependencies. When a new
+dependency is newer than the recorded index state, Cabal cannot plan it,
+and the command says to run `cabal-purifier lock --update`. An
+`index-state` in the project's own files takes precedence, and the
+lockfile then records none.
 
 ## Use
 
@@ -216,6 +226,34 @@ package store is under `dist-newstyle/cabal-purifier/cabal`. When the
 lockfile is out of date, the command warns and runs cabal the usual way
 until `cabal-purifier lock` renews it.
 
+For an editor, and for every other tool that runs cabal itself, put the
+command's `cabal` shim first on `PATH`:
+
+```zsh
+eval "$(nix run github:nix-purifiers/cabal-purifier -- env)"
+```
+
+Every `cabal` command then runs as `cabal-purifier cabal`, offline on the
+locked sources. haskell-language-server, started from that shell or with
+that `PATH`, loads the project through the shim: its build tool calls go
+to the locked sources, and it needs a GHC on `PATH` as it always does. A
+`.envrc` with that line does the same for direnv.
+
+The lockfile is checked whenever the command or the Nix library reads it,
+and each problem comes with the command that fixes it:
+
+- a project file that changed since the lock: the command warns and runs
+  cabal the usual way, and a Nix build fails, both saying to run
+  `cabal-purifier lock`;
+- a lockfile that is not valid JSON, or one whose downloads, repository
+  files and plans do not match up: both say what is wrong and to run
+  `cabal-purifier relock`;
+- a download that no longer matches its hash: the command explains that
+  the lockfile was edited or the source changed, and to run
+  `cabal-purifier relock`;
+- a build whose plan differs from the lock: the build lists the packages
+  that differ.
+
 ### Publishing
 
 ```zsh
@@ -255,20 +293,31 @@ nix-purifiers family.
 
 ## Tests
 
-`nix flake check` builds the fixtures under `tests/fixtures` in the
-sandbox and runs each: an app on Hackage packages, one of them with a
-Hackage revision, and a workspace with a library, its test suite and
-benchmark, an executable, a git source repository, a package URL and a
-local package outside the project. The checks also inspect the source and
-documentation tarballs. `tests/interactive.sh` tests what runs outside
-the sandbox: it relocks each fixture and compares the result with the
-committed lockfiles, builds and runs the workspace with `cabal-purifier
-cabal` with every proxy pointed at a closed port, checks the warning for a
-stale lock, and publishes to a stand-in Hackage (`tests/fake_hackage.py`)
-and compares the uploaded bytes with the tarball Nix built.
-`tests/vcs.sh` serves a Mercurial repository and two Darcs repositories on
-127.0.0.1, locks a project that takes all three, and builds and runs it
-with Nix. CI runs all three on x86_64-linux and aarch64-linux.
+`nix flake check` runs the unit tests (`tests/unit`: the lock run's
+parsing of plans, package indexes and lockfiles, its URL and path logic,
+the offline project copy and the plan check). It builds the fixtures
+under `tests/fixtures` in the sandbox and runs each: an app on Hackage
+packages, one of them with a Hackage revision, and a workspace with a
+library, its test suite and benchmark, an executable, a git source
+repository, a package URL and a local package outside the project. The
+checks also inspect the source and documentation tarballs. Negative
+checks give the builder a stale lockfile, one with a missing download,
+one whose plan names a package no source provides, and a system the lock
+has no plan for, and each must fail.
+
+`tests/interactive.sh` tests what runs outside the sandbox. It relocks
+each fixture and compares the result with the committed lockfile, byte
+for byte. It builds and runs the workspace with `cabal-purifier cabal`
+with every proxy pointed at a closed port, adds a dependency and locks,
+and checks the errors for a stale, a malformed, an inconsistent and a
+tampered lockfile. It also publishes to a stand-in Hackage
+(`tests/fake_hackage.py`) and compares the uploaded bytes with the tarball
+Nix built. `tests/vcs.sh` serves a Mercurial repository and two Darcs
+repositories on 127.0.0.1, locks a project that takes all three, and
+builds and runs it with Nix. `tests/editor.sh` runs
+haskell-language-server on the workspace through the `cabal-purifier env`
+shim, with every proxy pointed at a closed port. CI runs all of them on
+x86_64-linux and aarch64-linux.
 
 ## License
 

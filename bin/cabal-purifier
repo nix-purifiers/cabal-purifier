@@ -11,6 +11,10 @@ build it offline.
       Writes the lockfile regardless.
   cabal-purifier cabal ARGS...
       Runs cabal offline on the locked sources, which Nix fetches.
+  cabal-purifier env
+      Prints the PATH export that puts a `cabal` shim first, so that every
+      cabal command, the language server's included, runs offline:
+      `eval "$(cabal-purifier env)"`.
   cabal-purifier publish PACKAGE [--documentation] [UPLOAD-ARGS...]
       Builds the package's source tarball (or documentation) with Nix and
       uploads that file with `cabal upload`.
@@ -856,13 +860,55 @@ def verb_cabal(args):
             f"{', '.join(stale)} changed since the lock; running cabal the usual way until "
             "`cabal-purifier lock` renews it"
         )
-        os.execvp("cabal", ["cabal", *args])
+        cabal = real_cabal(root)
+        os.execv(cabal, [cabal, *args])
     work = root / "dist-newstyle" / "cabal-purifier"
     sources = realize(root, root / LOCK_NAME, work / "sources")
     env, project_args = offline_setup(root, lock, sources, work)
     if not args:
         raise Failure("give cabal a command, as in `cabal-purifier cabal build`")
-    os.execvpe("cabal", ["cabal", args[0], *project_args, *args[1:]], env)
+    # The project arguments go after the subcommand, which follows any
+    # global options: the language server runs `cabal --builddir=… repl`.
+    command = next((i for i, a in enumerate(args) if not a.startswith("-")), None)
+    if command is not None:
+        args = [*args[: command + 1], *project_args, *args[command + 1 :]]
+    cabal = real_cabal(root)
+    os.execve(cabal, [cabal, *args], env)
+
+
+def shim_dir(root):
+    return root / "dist-newstyle" / "cabal-purifier" / "bin"
+
+
+def real_cabal(root):
+    """The cabal on PATH, past the shim that `cabal-purifier env` puts
+    first, so that the shim's `cabal-purifier cabal` does not run itself."""
+    shims = shim_dir(root).resolve()
+    path = [p for p in os.environ.get("PATH", "").split(os.pathsep) if p and Path(p).resolve() != shims]
+    found = shutil.which("cabal", path=os.pathsep.join(path))
+    if not found:
+        raise Failure("no cabal on PATH")
+    return found
+
+
+def verb_env(args):
+    """Prints the PATH export that puts a `cabal` shim first: every cabal
+    command then runs as `cabal-purifier cabal`, offline on the locked
+    sources. An editor started with it, through its language server,
+    builds and checks the project offline too."""
+    if args:
+        raise Failure("`cabal-purifier env` takes no arguments")
+    root = project_root()
+    read_lock(root)
+    self = os.environ.get("CABAL_PURIFIER_SELF") or shutil.which("cabal-purifier")
+    if not self:
+        raise Failure("cannot find the cabal-purifier command for the shim")
+    shims = shim_dir(root)
+    shims.mkdir(parents=True, exist_ok=True)
+    shim = shims / "cabal"
+    shim.write_text(f'#!/bin/sh\nexec "{self}" cabal "$@"\n')
+    shim.chmod(0o755)
+    print(f'export PATH="{shims}:$PATH"')
 
 
 def verb_publish(args):
@@ -921,6 +967,8 @@ def main(argv):
             verb_lock(args, force=True)
         elif verb == "cabal":
             verb_cabal(args)
+        elif verb == "env":
+            verb_env(args)
         elif verb == "publish":
             verb_publish(args)
         else:

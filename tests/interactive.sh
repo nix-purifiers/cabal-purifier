@@ -67,6 +67,21 @@ case "$warning" in
   *) fail "a stale lock gave no warning: $warning" ;;
 esac
 
+echo "== adding a dependency and locking keeps the index state"
+cp -r "$work/fixtures/app" "$work/added"
+sed -i 's/build-depends: base, random, async/build-depends: base, random, async, containers/' \
+  "$work/added/hello.cabal"
+(cd "$work/added" && "$cli" lock)
+python3 - "$work/fixtures/app/cabal-purifier.lock.json" "$work/added/cabal-purifier.lock.json" <<'EOF'
+import json
+import sys
+
+before, after = (json.load(open(p)) for p in sys.argv[1:])
+assert before["indexState"] == after["indexState"], (before["indexState"], after["indexState"])
+assert before["definition"]["hello.cabal"] != after["definition"]["hello.cabal"]
+EOF
+(cd "$work/added" && "$cli" cabal build hello) > /dev/null
+
 echo "== a damaged lockfile gives an error that names the fix"
 expect_failure() {
   local dir=$1 expected=$2 message

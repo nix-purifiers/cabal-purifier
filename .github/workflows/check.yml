@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: MIT
 #
 # Runs on x86_64-linux and aarch64-linux: the flake's checks (the CLI
-# build, the sandboxed builds of the fixtures under tests/fixtures and a
-# run of each, and the formatting), then tests/interactive.sh for what runs
-# outside the sandbox (the lock run, `cabal` and `publish`), then
-# tests/vcs.sh for a Mercurial source repository.
+# build, the unit tests, the sandboxed builds of the fixtures under
+# tests/fixtures and a run of each, the negative checks, and the
+# formatting), then tests/interactive.sh for what runs outside the sandbox
+# (the lock run, `cabal`, `publish` and the errors for damaged lockfiles),
+# tests/vcs.sh for Mercurial and Darcs source repositories, and
+# tests/editor.sh for the language server in the offline mode.
 name: check
 
 on:
@@ -29,3 +31,4 @@ jobs:
       - run: nix flake check -L
       - run: tests/interactive.sh
       - run: tests/vcs.sh
+      - run: tests/editor.sh

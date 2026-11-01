@@ -34,6 +34,7 @@ stdenvNoCC.mkDerivation {
       --add-flags "$out/libexec/cabal-purifier.py" \
       --set CABAL_PURIFIER_LIB ${../../nix/lib} \
       --set CABAL_PURIFIER_NIXPKGS ${path} \
+      --set CABAL_PURIFIER_SELF "$out/bin/cabal-purifier" \
       --suffix PATH : ${
         lib.makeBinPath [
           cabal-install
