@@ -201,8 +201,6 @@ It keeps them alive with a garbage-collector root,
 `dist-newstyle/cabal-purifier/bin/cabal`, and prints a `PATH` export that
 puts the shim and the toolchain first. After a prefetch, `cabal build`,
 `cabal run`, `cabal test` and the editor work with the network cut off.
-The script `tests/conformance-offline.sh` runs them with every proxy
-pointed at a closed port.
 
 The shim runs cabal with a Cabal directory whose only repository is the
 locked one, and with an offline copy of the configuration of the project. The
@@ -233,9 +231,7 @@ shim first on `PATH`. An editor started from that shell, or with that
 `PATH`, loads the project through the shim, so the build tool calls of the
 language server go to the locked sources and nothing is downloaded.
 A `.envrc` with the `eval` line from [Offline work](#offline-work) does
-the same for direnv. `tests/conformance-offline.sh` runs the language
-server on the two modules of the workspace fixture with the network cut
-off, and it reports no failed file.
+the same for direnv.
 
 ## Errors and fixes
 
@@ -254,10 +250,6 @@ fixes it, which is `cabal-purifier lock` for every one of these:
 | A download no longer matches its hash | Nix reports the mismatch, and the command says the lockfile was edited or the source changed upstream. |
 | A build whose plan differs from the lock | The build lists the packages that differ. |
 | A dependency newer than the recorded index state | Cabal cannot plan it, and the command says to run `cabal-purifier update`. |
-
-The checks `conformance-stale`, `conformance-tampered`,
-`conformance-missing` and `conformance-malformed` of the flake evaluate
-the library with each kind of broken lockfile and check the message.
 
 ## Sources supported and refused
 
@@ -309,47 +301,55 @@ them as `nativeBuildInputs` and `buildInputs`.
 
 ## Examples
 
-CI locks and builds these projects on every push. They show what the
-lock and the builder do, and they are examples rather than a list of the
-projects that work.
+### ShellCheck
 
-- **[ShellCheck](https://github.com/koalaman/shellcheck) v0.11.0** is a
-  single package with no `cabal.project`, with a library, the
-  `shellcheck` executable and a test suite. `cabal-purifier lock` in a
-  checkout of the release records 70 downloads. The checks of the flake
-  build it in the sandbox from that lockfile
-  (`tests/real-world/shellcheck`), run `shellcheck` on a script, and run
-  the test suite of ShellCheck.
-- **The workspace fixture** (`tests/fixtures/workspace`) has a library
-  with a test suite and a benchmark, an executable, a tagged git source
-  repository, a package URL and a local package outside the project.
-- **The external fixture** (`tests/fixtures/external`) holds only Cabal
-  files and builds from a lockfile kept outside it.
+[ShellCheck](https://github.com/koalaman/shellcheck) is a single Haskell
+package with a library, an executable and a test suite, and no
+`cabal.project`. To build it with Nix, lock it in a checkout of the
+release:
 
-### Tests
+```zsh
+git clone --branch v0.11.0 https://github.com/koalaman/shellcheck
+cd shellcheck
+nix run github:nix-purifiers/cabal-purifier -- lock --lockfile ../shellcheck.lock.json
+```
 
-`nix flake check` runs the unit tests (`tests/unit`), builds the fixtures
-under `tests/fixtures` in the sandbox and runs each: an app on Hackage
-packages, one of them with a Hackage revision, a workspace with a library,
-its test suite and benchmark, an executable, a git source repository, a
-package URL and a local package outside the project, and an external
-fixture whose lockfile lies outside it (`conformance-external`). The
-`conformance-*` checks of the contract that the sandbox can run are in the
-flake. Four need the network or Nix itself, and CI runs them as steps of
-the same name: `tests/conformance-relock.sh` relocks every fixture and
-ShellCheck and compares the result with the committed lockfile, byte for
-byte, `tests/conformance-rebuild.sh` rebuilds the app fixture with
-`nix build --rebuild`, `tests/conformance-offline.sh` runs the everyday
-loop and the language server with the network cut off, and
-`tests/conformance-update.sh` updates a fixture that pins an old `async`.
+The lockfile goes outside the checkout, because the author of ShellCheck
+does not keep one. A flake then builds the release from the lockfile:
 
-`tests/interactive.sh` tests the errors that stop `prefetch` and the
-shim, adds a dependency and locks, and publishes to a stand-in Hackage
-(`tests/fake_hackage.py`), comparing the uploaded bytes with the tarball
-Nix built. `tests/vcs.sh` serves a Mercurial repository and two Darcs
-repositories on 127.0.0.1, locks a project that takes all three, and
-builds and runs it with Nix. CI runs all of them on x86_64-linux and
-aarch64-linux.
+```nix
+{
+  inputs.cabal-purifier.url = "github:nix-purifiers/cabal-purifier";
+  inputs.nixpkgs.follows = "cabal-purifier/nixpkgs";
+  inputs.shellcheck = {
+    url = "github:koalaman/shellcheck/v0.11.0";
+    flake = false;
+  };
+
+  outputs = { nixpkgs, cabal-purifier, shellcheck, ... }:
+    let
+      system = "x86_64-linux";
+      pkgs = nixpkgs.legacyPackages.${system};
+      project = cabal-purifier.lib.cabal-purifier.buildCabalProject {
+        inherit pkgs;
+        src = shellcheck;
+        lockFile = ./shellcheck.lock.json;
+      };
+    in
+    {
+      packages.${system}.default = project.packages.ShellCheck.executables.shellcheck;
+      checks.${system}.tests = project.tests;
+    };
+}
+```
+
+`nix build` builds `shellcheck` in the sandbox, and `nix flake check` runs
+the test suite of ShellCheck. To work on ShellCheck itself, run this in
+the checkout, and then use `cabal build` and `cabal test` as usual:
+
+```zsh
+eval "$(nix run github:nix-purifiers/cabal-purifier -- prefetch --lockfile ../shellcheck.lock.json)"
+```
 
 ## Credits
 
