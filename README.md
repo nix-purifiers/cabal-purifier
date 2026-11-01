@@ -307,14 +307,24 @@ A `.cabal` file names system libraries (`extra-libraries`,
 `pkgconfig-depends`) but not where they come from, so the builder takes
 them as `nativeBuildInputs` and `buildInputs`.
 
-## Real-world projects
+## Examples
 
-- **[ShellCheck](https://github.com/koalaman/shellcheck) v0.11.0**, a
-  single package with no `cabal.project`, a library, the `shellcheck`
-  executable and a test suite. `cabal-purifier lock` in a checkout of the
-  release records 70 downloads. The checks of the flake build it in the
-  sandbox from that lockfile (`tests/real-world/shellcheck`), run
-  `shellcheck` on a script, and run the test suite of ShellCheck.
+CI locks and builds these projects on every push. They show what the
+lock and the builder do, and they are examples rather than a list of the
+projects that work.
+
+- **[ShellCheck](https://github.com/koalaman/shellcheck) v0.11.0** is a
+  single package with no `cabal.project`, with a library, the
+  `shellcheck` executable and a test suite. `cabal-purifier lock` in a
+  checkout of the release records 70 downloads. The checks of the flake
+  build it in the sandbox from that lockfile
+  (`tests/real-world/shellcheck`), run `shellcheck` on a script, and run
+  the test suite of ShellCheck.
+- **The workspace fixture** (`tests/fixtures/workspace`) has a library
+  with a test suite and a benchmark, an executable, a tagged git source
+  repository, a package URL and a local package outside the project.
+- **The external fixture** (`tests/fixtures/external`) holds only Cabal
+  files and builds from a lockfile kept outside it.
 
 ### Tests
 
