@@ -1171,6 +1171,12 @@ def verb_prefetch(root, path, tool, args):
 
 def shim_cabal(root, path, tool, args):
     """What the `cabal` shim runs: cabal offline on the locked sources."""
+    if not path.exists():
+        say('warning: no cabal-purifier.lock.json found; running cabal impurely. Run `cabal-purifier lock` to use Nix-resolved dependencies.')
+        env = dict(os.environ)
+        env.pop("CABAL_PURIFIER_SHIM", None)
+        cabal = real_cabal(root)
+        os.execve(cabal, [cabal, *args], env)
     freeze = outside_freeze(tool)
     lock = read_current_lock(root, path, freeze)
     work = work_dir(root)
