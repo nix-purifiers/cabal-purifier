@@ -29,7 +29,7 @@
 let
   inherit (pkgs) lib;
 
-  build = purified.buildCabalProject;
+  build = purified.cabal-purifier.buildCabalProject;
 
   # Runs a program from a build and checks its output.
   runs =
@@ -59,8 +59,11 @@ let
   external = build {
     src = ./fixtures/external;
     lockFile = ./external/cabal-purifier.lock.json;
+    cabalFreeze = ./external/cabal.project.freeze;
     name = "fixture-external";
   };
+  externalLock = lib.importJSON ./external/cabal-purifier.lock.json;
+  hasDownload = lock: path: builtins.any (d: d.path == path) lock.downloads;
 
   shellcheckProject = build {
     src = shellcheck;
@@ -237,10 +240,14 @@ in
     expected = "it has no hash";
   };
 
-  # The external fixture holds only Cabal's own files, and its lockfile is
-  # kept outside it.
+  # The external fixture holds only Cabal files, and its lockfile is kept
+  # outside it. Its freeze file pins async 2.2.4, and the freeze file kept
+  # outside it replaces that one and pins async 2.2.5, which the build
+  # uses.
   conformance-external =
     assert !(builtins.pathExists ./fixtures/external/cabal-purifier.lock.json);
+    assert hasDownload externalLock "repository/async-2.2.5.tar.gz";
+    assert !(hasDownload externalLock "repository/async-2.2.4.tar.gz");
     runs "conformance-external" "${external.packages.external.executables.external}/bin/external"
       "hello external";
 

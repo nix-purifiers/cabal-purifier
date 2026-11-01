@@ -26,9 +26,14 @@ for fixture in app workspace; do
 done
 
 mkdir -p "$work/external"
-cp "$root/tests/external/cabal-purifier.lock.json" "$work/external/"
+cp "$root/tests/external/cabal-purifier.lock.json" "$root/tests/external/cabal.project.freeze" "$work/external/"
 relocks "$work/fixtures/external" "$root/tests/external/cabal-purifier.lock.json" \
-  "$work/external/cabal-purifier.lock.json" --lockfile "$work/external/cabal-purifier.lock.json"
+  "$work/external/cabal-purifier.lock.json" \
+  --lockfile "$work/external/cabal-purifier.lock.json" \
+  --tool-lockfile "$work/external/cabal.project.freeze"
+diff -u "$root/tests/fixtures/external/cabal.project.freeze" \
+  "$work/fixtures/external/cabal.project.freeze" ||
+  fail "locking the external fixture changed the freeze file in its tree"
 
 rev=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["nodes"]["shellcheck"]["locked"]["rev"])' \
   "$root/tests/dependencies/flake.lock")

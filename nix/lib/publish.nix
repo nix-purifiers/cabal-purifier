@@ -16,6 +16,9 @@
   nixpkgs,
   # The source of github:nix-purifiers/purifier the command was built with.
   purifier,
+  # A cabal.project.freeze kept outside the project, as an absolute path
+  # string, or "" for the one in the project.
+  cabalFreeze ? "",
 }:
 let
   pkgs = import nixpkgs { };
@@ -23,14 +26,17 @@ let
     purifier = import ./purifier.nix { inherit pkgs purifier; };
   };
   root = /. + src;
+  freeze = if cabalFreeze == "" then null else /. + cabalFreeze;
   lock =
     (import ./read-lock.nix {
       src = root;
       lockFile = /. + lockFile;
+      cabalFreeze = freeze;
     }).cabal;
   project = buildCabalProject {
     src = root;
     lockFile = /. + lockFile;
+    cabalFreeze = freeze;
     # Nix resolves the `..` of each path when it makes the path.
     externalPaths = pkgs.lib.genAttrs lock.externalPaths (p: /. + "${src}/${p}");
   };

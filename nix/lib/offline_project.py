@@ -71,8 +71,11 @@ def rewrite_packages(lines, remote):
     return out
 
 
-def rewrite(path, remote, seen=()):
-    """The offline text of one project file, with its imports inlined."""
+def rewrite(path, remote, seen=(), keep_sources=False):
+    """The offline text of one project file, with its imports inlined.
+
+    With `keep_sources`, the source repositories, the repositories and the
+    index state stay, for a project file that Cabal plans with."""
     path = Path(path).resolve()
     if path in seen:
         raise ProjectError(f"{path} imports itself")
@@ -80,7 +83,7 @@ def rewrite(path, remote, seen=()):
     out = []
     for block in blocks(text):
         header = block[0]
-        if DROPPED_SECTIONS.match(header) or DROPPED_FIELDS.match(header):
+        if not keep_sources and (DROPPED_SECTIONS.match(header) or DROPPED_FIELDS.match(header)):
             continue
         if PACKAGE_FIELDS.match(header):
             out.extend(rewrite_packages(block, remote))
@@ -95,19 +98,23 @@ def rewrite(path, remote, seen=()):
                     "Copy the file into the project and import it by path."
                 )
             out.append(f"-- imported from {target}\n")
-            out.append(rewrite(path.parent / target, remote, seen + (path,)))
+            out.append(rewrite(path.parent / target, remote, seen + (path,), keep_sources))
             out.append("\n")
             continue
         out.extend(block)
     return "".join(out)
 
 
-def write(project_dir, output_dir, remote=None, constraints=()):
+def write(project_dir, output_dir, remote=None, constraints=(), freeze=None, keep_sources=False):
     """Writes the offline copy of the project at project_dir to output_dir.
 
     `remote` maps each locked package URL to its unpacked directory.
     `constraints` are Cabal constraint strings, one per line of the
-    generated `constraints` field. Returns the path of the main file.
+    generated `constraints` field. `freeze` is a freeze file kept outside
+    the project, which the copy uses in place of the project's own.
+    `keep_sources` leaves the source repositories, the repositories and the
+    index state in, for a copy that Cabal plans with. Returns the path of
+    the main file.
     """
     project_dir = Path(project_dir)
     output_dir = Path(output_dir)
@@ -115,7 +122,7 @@ def write(project_dir, output_dir, remote=None, constraints=()):
     remote = remote or {}
     main = project_dir / PROJECT_FILE
     if main.exists():
-        text = rewrite(main, remote)
+        text = rewrite(main, remote, keep_sources=keep_sources)
     else:
         # Cabal's implicit project when there is no cabal.project.
         text = "packages: ./*.cabal\n"
@@ -125,9 +132,11 @@ def write(project_dir, output_dir, remote=None, constraints=()):
     (output_dir / PROJECT_FILE).write_text(text)
     for companion in COMPANIONS:
         source = project_dir / f"{PROJECT_FILE}.{companion}"
+        if companion == "freeze" and freeze is not None:
+            source = Path(freeze)
         target = output_dir / f"{PROJECT_FILE}.{companion}"
         if source.exists():
-            target.write_text(rewrite(source, remote))
+            target.write_text(rewrite(source, remote, keep_sources=keep_sources))
         elif target.exists():
             target.unlink()
     return output_dir / PROJECT_FILE
@@ -141,6 +150,7 @@ def main(argv):
         "--remote", help="a JSON file mapping each locked package URL to its directory"
     )
     parser.add_argument("--constraints", help="a file of Cabal constraints, one per line")
+    parser.add_argument("--freeze", help="a freeze file kept outside the project, used in its place")
     args = parser.parse_args(argv)
     remote = json.loads(Path(args.remote).read_text()) if args.remote else {}
     constraints = (
@@ -149,7 +159,7 @@ def main(argv):
         else []
     )
     try:
-        write(args.project_dir, args.output_dir, remote, constraints)
+        write(args.project_dir, args.output_dir, remote, constraints, args.freeze)
     except ProjectError as error:
         print(f"cabal-purifier: {error}", file=sys.stderr)
         return 1

@@ -18,10 +18,19 @@
 # build reads it through a writable directory of links to repo/.
 {
   lib,
-  pkgs,
   runCommand,
   gnutar,
   gzip,
+  # The fetchers and tools that `fetchEntry` uses for the kinds of download
+  # a lock holds.
+  fetchurl,
+  fetchgit,
+  fetchhg,
+  fetchdarcs,
+  unzip,
+  zstd,
+  python3,
+  writeText,
   # The `purifier` library namespace of github:nix-purifiers/purifier,
   # whose `fetchEntry` fetches each download of the lock.
   purifier,
@@ -38,7 +47,22 @@
   fetchers ? { },
 }:
 let
-  fetch = purifier.fetchEntry ({ inherit pkgs; } // fetchers);
+  fetch = purifier.fetchEntry (
+    {
+      inherit
+        fetchurl
+        fetchgit
+        fetchhg
+        fetchdarcs
+        runCommand
+        unzip
+        zstd
+        python3
+        writeText
+        ;
+    }
+    // fetchers
+  );
   wanted = lib.listToAttrs (
     map (e: {
       name = e.path;

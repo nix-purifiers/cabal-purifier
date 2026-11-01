@@ -5,16 +5,17 @@
 #
 # The file is a package for callPackage: the first argument set is what it
 # takes from the package set, and the result is the builder. The
-# cabal-purifier overlay (`overlays.default`) adds it to the package set as
-# `buildCabalProject`, so a package written for callPackage takes it like
-# any other dependency:
+# cabal-purifier overlay (`overlays.default`) adds the scope
+# `pkgs.cabal-purifier`, which holds it as `buildCabalProject`, so a
+# package written for callPackage takes the scope by name:
 #
-#   { buildCabalProject }:
-#   (buildCabalProject { src = ./.; }).packages.my-app.executables.my-app
+#   { cabal-purifier }:
+#   (cabal-purifier.buildCabalProject { src = ./.; }).packages.my-app.executables.my-app
 #
-# and `buildCabalProject.override` replaces what it takes from the set. The
-# `purifier` it takes is the library namespace of
-# github:nix-purifiers/purifier, which the overlay passes. The builder
+# `cabal-purifier.overrideScope` replaces what the scope shares, and
+# `cabal-purifier.buildCabalProject.override` replaces what the builder
+# takes. The `purifier` it takes is the library namespace of
+# github:nix-purifiers/purifier, which the scope passes. The builder
 # returns
 #
 #   packages.<name>  for each package of the project:
@@ -44,7 +45,6 @@
 # The lock records the outputs, so all of these are known when Nix
 # evaluates, without building anything.
 {
-  pkgs,
   lib,
   stdenv,
   stdenvNoCC,
@@ -65,6 +65,9 @@
   # the project root. A lockfile kept outside `src` takes the place of any
   # lockfile in it.
   lockFile ? src + "/cabal-purifier.lock.json",
+  # A cabal.project.freeze kept outside `src`, which the builds use in
+  # place of the one in `src`. The default, null, is the copy in `src`.
+  cabalFreeze ? null,
   # Replacements for the fetchers of the purifier library's fetchEntry,
   # such as a `fetchurl` that goes through a mirror or sends credentials.
   # Each is called with the arguments of the nixpkgs fetcher of its name.
@@ -94,7 +97,11 @@
 }:
 let
   # The lock in memory; checkLock fails evaluation with its problems.
-  locked = purifier.checkLock (import ./read-lock.nix { inherit src lockFile; });
+  locked = purifier.checkLock (
+    import ./read-lock.nix {
+      inherit src lockFile cabalFreeze;
+    }
+  );
   lock = locked.cabal;
 
   plan = lock.plan system;
@@ -215,7 +222,8 @@ let
       --project-dir . \
       --output-dir "$TMPDIR/project" \
       --remote ${repository}/remote.json \
-      --constraints ${constraints}
+      --constraints ${constraints} \
+      ${lib.optionalString (cabalFreeze != null) "--freeze ${cabalFreeze}"}
     # The project directory is absolute: Cabal configures each package
     # from another working directory, where a relative one would not
     # resolve.

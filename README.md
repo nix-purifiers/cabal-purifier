@@ -17,14 +17,17 @@ In the project root, which has a `cabal.project` or a `.cabal` file:
 nix run github:nix-purifiers/cabal-purifier -- lock
 ```
 
-This writes `cabal-purifier.lock.json`. Commit it. The overlay of the
-flake, `overlays.default`, adds `buildCabalProject` to a package set, and a
-package written for `callPackage` takes it by name:
+This writes `cabal-purifier.lock.json`. Commit it to the repository of the
+project, next to `cabal.project.freeze` when the project has one. The
+overlay of the flake, `overlays.default`, adds one attribute to a package
+set, the scope `cabal-purifier`, which holds the builder
+`buildCabalProject`. A package written for `callPackage` takes the scope by
+name:
 
 ```nix
 # package.nix
-{ buildCabalProject, pkg-config, zlib }:
-buildCabalProject {
+{ cabal-purifier, pkg-config, zlib }:
+cabal-purifier.buildCabalProject {
   src = ./.;
   # Libraries outside Cabal, such as zlib for `pkgconfig-depends: zlib`.
   nativeBuildInputs = [ pkg-config ];
@@ -56,8 +59,10 @@ buildCabalProject {
 }
 ```
 
-`buildCabalProject` returns these attributes, and Nix knows every name
-when it evaluates, without building anything:
+`cabal-purifier.overrideScope` replaces what the scope shares, and
+`cabal-purifier.buildCabalProject.override` replaces what the builder
+takes from the package set. `buildCabalProject` returns these attributes,
+and Nix knows every name when it evaluates, without building anything:
 
 - `packages.<package>`, for each package of the project:
   - `executables.<name>`, each executable at `bin/<name>`;
@@ -91,22 +96,30 @@ arguments of the nixpkgs fetcher of that name.
 
 ### A lockfile outside the project
 
-A flake that packages a project whose author does not change it keeps the
-lockfile outside the project tree and passes it as `lockFile`:
+The recommended setup is the one above: both lockfiles lie in the
+repository of the project. A flake that packages a project whose author
+does not change it can keep them outside the project tree and pass them to
+the builder:
 
 ```nix
-pkgs.buildCabalProject {
+pkgs.cabal-purifier.buildCabalProject {
   src = inputs.some-project;
   lockFile = ./locks/some-project.lock.json;
+  # A cabal.project.freeze that replaces the one in `src`, when needed.
+  cabalFreeze = ./locks/some-project.cabal.project.freeze;
 }
 ```
 
-A `lockFile` outside `src` takes the place of any lockfile in it. Every
-command takes `--lockfile <path>`, or the environment variable
-`CABAL_PURIFIER_LOCKFILE`, for such a lockfile, and either one takes
-precedence over the default, `cabal-purifier.lock.json` at the project
-root. The dev shell of the flake can set the variable to the same path, so
-that a developer runs the commands with no flag.
+A `lockFile` outside `src` takes the place of any lockfile in it, and
+`cabalFreeze` takes the place of the `cabal.project.freeze` in it. Every
+command takes `--lockfile <path>` and `--tool-lockfile <path>` for the two
+files, or the environment variables `CABAL_PURIFIER_LOCKFILE` and
+`CABAL_PURIFIER_TOOL_LOCKFILE`, and either form takes precedence over the
+default files in the project. With `--tool-lockfile`, `lock` and `update`
+write the freeze file there and leave the copy in the project as it is.
+When the file does not exist yet, they start from the copy in the project.
+The dev shell of the flake can set the variables to the paths it passes to
+the builder, so that a developer runs the commands with no flag.
 
 ## Development loop
 
@@ -286,7 +299,7 @@ Every kind of source that cabal-install fetches works:
   an argument, keyed by the path the lock gives it:
 
   ```nix
-  pkgs.buildCabalProject {
+  pkgs.cabal-purifier.buildCabalProject {
     src = ./.;
     externalPaths."../shared" = inputs.shared;
   }
@@ -343,7 +356,7 @@ does not keep one. A flake then builds the release from the lockfile:
         inherit system;
         overlays = [ cabal-purifier.overlays.default ];
       };
-      project = pkgs.buildCabalProject {
+      project = pkgs.cabal-purifier.buildCabalProject {
         src = shellcheck;
         lockFile = ./shellcheck.lock.json;
       };

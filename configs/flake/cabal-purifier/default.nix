@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-{ ... }:
+{ closure-lib, ... }:
 {
   config,
   inputs,
@@ -8,29 +8,28 @@
 }:
 {
 
-  imports = [ inputs.flake-parts.flakeModules.partitions ];
+  imports = [
+    inputs.flake-parts.flakeModules.partitions
+    closure-lib.caisson.modules.flake."purifier/purifier-packages"
+  ];
 
   debug = false;
-  caisson = {
-    libOverlays.exported = libOverlays: {
-      inherit (libOverlays) default;
-    };
 
-    # The packages are the `default` entry of this flake's package overlay
-    # registry (pkg-overlays/): the package set applies it by default, and
-    # the flake exports it as `pkgOverlays` and as the plain
-    # `overlays.default`.
-    nixpkgs = {
-      packages.export.enabled = true;
-    };
+  # The `packages` output has the derivations of the scope
+  # `pkgs.cabal-purifier`. The scope also holds the builder, which is a
+  # function.
+  purifier.scope = "cabal-purifier";
+
+  caisson.libOverlays.exported = libOverlays: {
+    inherit (libOverlays) default;
   };
 
   # `nix run github:nix-purifiers/cabal-purifier -- lock` locks the project
   # in the current directory.
   perSystem =
-    { config, ... }:
+    { pkgs, ... }:
     {
-      packages.default = config.packages.cli;
+      packages.default = pkgs.cabal-purifier.cli;
     };
 
   partitionedAttrs.checks = "checks";

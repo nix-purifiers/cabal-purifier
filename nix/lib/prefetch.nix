@@ -18,6 +18,9 @@
   nixpkgs,
   # The source of github:nix-purifiers/purifier the command was built with.
   purifier,
+  # A cabal.project.freeze kept outside the project, as an absolute path
+  # string, or "" for the one in the project.
+  cabalFreeze ? "",
 }:
 let
   pkgs = import nixpkgs { };
@@ -25,6 +28,7 @@ let
     (import ./read-lock.nix {
       src = /. + src;
       lockFile = /. + lockFile;
+      cabalFreeze = if cabalFreeze == "" then null else /. + cabalFreeze;
     }).cabal;
   plan = lock.plan system;
   ghcAttr = lock.compilerAttr system;
@@ -43,6 +47,7 @@ let
       system
       nixpkgs
       purifier
+      cabalFreeze
       ;
   };
   toolchain = pkgs.symlinkJoin {

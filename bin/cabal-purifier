@@ -24,7 +24,11 @@ build it offline.
 
 Every command takes --lockfile PATH, or the environment variable
 CABAL_PURIFIER_LOCKFILE, for a lockfile outside the project; the default
-is cabal-purifier.lock.json at the project root.
+is cabal-purifier.lock.json at the project root. It also takes
+--tool-lockfile PATH, or CABAL_PURIFIER_TOOL_LOCKFILE, for a
+cabal.project.freeze kept outside the project. `lock` and `update` write
+the freeze file there and leave the copy in the project as it is, and when
+the file does not exist yet they start from the copy in the project.
 
 The command reads these environment variables, which its Nix package sets:
 CABAL_PURIFIER_LIB (the directory of its Nix library),
@@ -296,16 +300,46 @@ def freeze_without(text, packages):
     return "\n".join(kept) + "\n"
 
 
-def refresh_resolution(root, env, ghc, latest, packages, previous_plans):
+def refresh_resolution(root, env, ghc, latest, packages, previous_plans, outside=None):
     """What `update` changes before the lock: Cabal's own resolution, re-
     resolved with the newest index (`latest`) for `packages`, or for every
     package when `packages` is empty.
 
-    With a freeze file, Cabal's lockfile, the named packages' constraints
-    (or the whole file) go, and `cabal freeze` writes it again. Without
-    one, the other packages keep their versions and flags through
-    constraints from the previous lock's plans, returned per system."""
+    With a freeze file, the Cabal lockfile, the constraints of the named
+    packages (or the whole file) go, and `cabal freeze` writes it again.
+    The freeze file is `outside` when that is given, a copy kept outside
+    the project, and the one in the project otherwise. Without a freeze
+    file, the other packages keep their versions and flags through
+    constraints from the plans of the previous lock, returned per system."""
     freeze = root / FREEZE
+    if outside is not None:
+        base = outside if outside.exists() else freeze
+        text = base.read_text() if base.exists() else ""
+        kept = freeze_without(text, set(packages)) if packages else ""
+        say(f"writing {outside} again with the newest package index")
+        with tempfile.TemporaryDirectory(prefix="cabal-purifier-freeze-") as tmp:
+            tmp = Path(tmp)
+            seed = tmp / "seed.freeze"
+            seed.write_text(kept)
+            project = offline_project().write(
+                root, tmp / "project", freeze=seed, keep_sources=True
+            )
+            index_args = [f"--index-state={latest}"] if latest else []
+            run(
+                [
+                    "cabal",
+                    "freeze",
+                    f"--project-dir={root}",
+                    f"--project-file={project}",
+                    f"--with-compiler={ghc}",
+                    *index_args,
+                ],
+                cwd=root,
+                env=env,
+            )
+            outside.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(tmp / "project" / FREEZE, outside)
+        return {}
     if freeze.exists():
         if packages:
             freeze.write_text(freeze_without(freeze.read_text(), set(packages)))
@@ -495,16 +529,27 @@ def components_of(units):
     return out
 
 
-def definition_files(root, local_dirs):
+def definition_files(root, local_dirs, freeze=None):
+    """The project files the lock is made from, with their hashes. A freeze
+    file kept outside the project is recorded under the name of the one in
+    the project."""
     files = [f for f in PROJECT_FILES if (root / f).exists()]
+    if freeze:
+        files.append(FREEZE)
     for directory in local_dirs:
         for cabal_file in sorted((root / directory).glob("*.cabal")):
             files.append(relative_to_root(root, cabal_file))
-    return {f: sri_of_file(root / f) for f in sorted(set(files))}
+    return {f: sri_of_file(freeze if freeze and f == FREEZE else root / f) for f in sorted(set(files))}
 
 
-def make_lock(root, configuration, previous_index_state, refresh=None, previous_plans=None):
+def make_lock(
+    root, configuration, previous_index_state, refresh=None, previous_plans=None, tool=None
+):
     """Plans the project for every system and returns the lockfile.
+
+    `tool` is a freeze file kept outside the project. The lock plans with
+    it in place of the one in the project and records its hash, and when
+    it does not exist yet, it starts as a copy of the one in the project.
 
     The lock run's Cabal directory is empty apart from the package index,
     which it keeps under ~/.cache/cabal-purifier between runs: Cabal
@@ -542,16 +587,29 @@ def make_lock(root, configuration, previous_index_state, refresh=None, previous_
         latest = re.findall(r"index-state is set to (\S+?)\.?$", updated, re.MULTILINE)
         latest = latest[-1] if latest else None
         ghc = find_compiler(root)
+        if tool is not None and not tool.exists() and (root / FREEZE).exists():
+            tool.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(root / FREEZE, tool)
         pins = {}
         if refresh is not None:
-            pins = refresh_resolution(root, env, ghc, latest, refresh, previous_plans or {})
-        if project_index_state(root):
+            pins = refresh_resolution(
+                root, env, ghc, latest, refresh, previous_plans or {}, tool
+            )
+        freeze = tool if tool is not None and tool.exists() else None
+        if project_index_state(root) or (freeze and project_index_state_in(freeze)):
             index_state = None
         elif previous_index_state and refresh is None:
             index_state = previous_index_state
         else:
             index_state = latest
         index_args = [f"--index-state={index_state}"] if index_state else []
+        if freeze:
+            # Cabal reads the freeze file beside the project file, so a copy
+            # of the project file in the lock run's directory has it.
+            project = offline_project().write(
+                root, tmp / "lock-project", freeze=freeze, keep_sources=True
+            )
+            index_args += [f"--project-dir={root}", f"--project-file={project}"]
 
         plans = {}
         for system in SYSTEMS:
@@ -693,7 +751,7 @@ def make_lock(root, configuration, previous_index_state, refresh=None, previous_
             "version": LOCK_VERSION,
             "configuration": configuration,
             "indexState": index_state,
-            "definition": definition_files(root, local_dirs),
+            "definition": definition_files(root, local_dirs, freeze),
             "downloads": [downloads[p] for p in sorted(downloads)],
             "repository": [repository[f] for f in sorted(repository)],
             "remotePackages": [remote[u] for u in sorted(remote)],
@@ -727,7 +785,7 @@ def purifier_source():
     return PURIFIER
 
 
-def realize(root, lock_path, out_link):
+def realize(root, lock_path, out_link, freeze=None):
     out_link.parent.mkdir(parents=True, exist_ok=True)
     try:
         out = run(
@@ -749,6 +807,7 @@ def realize(root, lock_path, out_link):
                 "--argstr",
                 "purifier",
                 purifier_source(),
+                *freeze_args(freeze),
                 "--out-link",
                 out_link,
             ],
@@ -776,10 +835,16 @@ def constraints_of(units):
     return lines
 
 
-def offline_setup(root, lock, sources, work):
+def freeze_args(freeze):
+    """The nix-build arguments for a freeze file kept outside the project."""
+    return ["--argstr", "cabalFreeze", Path(freeze).resolve()] if freeze else []
+
+
+def offline_setup(root, lock, sources, work, freeze=None):
     """A Cabal directory whose only repository is the locked one, and the
-    offline copy of the project's configuration. Returns the environment
-    and the project arguments for cabal."""
+    offline copy of the configuration of the project, with `freeze` in
+    place of the freeze file of the project when it is given. Returns the
+    environment and the project arguments for cabal."""
     work.mkdir(parents=True, exist_ok=True)
     repo = work / "repository"
     if repo.exists():
@@ -801,20 +866,24 @@ def offline_setup(root, lock, sources, work):
     if system not in lock["systems"]:
         raise Failure(f"the lockfile has no plan for {system}; run `cabal-purifier lock`")
     project = offline_project().write(
-        root, work / "project", remote, constraints_of(lock["systems"][system]["units"])
+        root,
+        work / "project",
+        remote,
+        constraints_of(lock["systems"][system]["units"]),
+        freeze=freeze,
     )
     env = dict(os.environ, CABAL_DIR=str(cabal_dir))
     return env, [f"--project-dir={root}", f"--project-file={project}"]
 
 
-def check_lock(root, lock_path, lock):
+def check_lock(root, lock_path, lock, freeze=None):
     """Resolves the project offline from the locked sources alone, which
     shows that the lock holds everything the plan needs."""
     say("checking the lock: resolving offline from the locked sources")
     with tempfile.TemporaryDirectory(prefix="cabal-purifier-check-") as tmp:
         tmp = Path(tmp)
-        sources = realize(root, lock_path, tmp / "sources")
-        env, project_args = offline_setup(root, lock, sources, tmp / "work")
+        sources = realize(root, lock_path, tmp / "sources", freeze)
+        env, project_args = offline_setup(root, lock, sources, tmp / "work", freeze)
         system = host_system()
         resolved = plan(
             root,
@@ -915,10 +984,12 @@ def read_lock(path):
     return lock
 
 
-def stale_files(root, lock):
+def stale_files(root, lock, freeze=None):
+    """The project files that changed since the lock. A freeze file kept
+    outside the project takes the place of the one in the project."""
     stale = []
     for file, digest in lock["definition"].items():
-        path = root / file
+        path = freeze if freeze and file == FREEZE else root / file
         if not path.exists() or sri_of_file(path) != digest:
             stale.append(file)
     return stale
@@ -947,6 +1018,18 @@ def lockfile_path(root, option):
     return Path(given).resolve() if given else root / LOCK_NAME
 
 
+def tool_lockfile_path(option):
+    """The freeze file kept outside the project: `--tool-lockfile`, then
+    CABAL_PURIFIER_TOOL_LOCKFILE, and None when neither is given."""
+    given = option or os.environ.get("CABAL_PURIFIER_TOOL_LOCKFILE")
+    return Path(given).resolve() if given else None
+
+
+def outside_freeze(tool):
+    """The freeze file kept outside the project, when it exists."""
+    return tool if tool is not None and tool.exists() else None
+
+
 def previous_lock(path):
     """The last lockfile as JSON, even one of an older format or one that no
     longer passes the checks: `lock` takes its index state, and `update`
@@ -958,17 +1041,26 @@ def previous_lock(path):
     return previous if isinstance(previous, dict) else {}
 
 
-def verb_lock(root, path, args):
-    """Locks Cabal's resolution as it is: the plan uses the package index as
-    of the last lock, and the freeze file as it is."""
+def verb_lock(root, path, tool, args):
+    """Locks the resolution of Cabal as it is: the plan uses the package
+    index as of the last lock, and the freeze file as it is."""
     configuration, rest = parse_lock_options(args)
     if rest:
-        raise Failure(f"`cabal-purifier lock` takes no packages; `cabal-purifier update {' '.join(rest)}` re-resolves them")
+        raise Failure(
+            f"`cabal-purifier lock` takes no packages; `cabal-purifier update {' '.join(rest)}` "
+            "re-resolves them"
+        )
     index_state = previous_lock(path).get("indexState")
-    write_lock(root, path, make_lock(root, configuration, index_state if isinstance(index_state, str) else None))
+    lock = make_lock(
+        root,
+        configuration,
+        index_state if isinstance(index_state, str) else None,
+        tool=tool,
+    )
+    write_lock(root, path, lock, outside_freeze(tool))
 
 
-def verb_update(root, path, args):
+def verb_update(root, path, tool, args):
     """Re-resolves the named packages, or every package, with the newest
     package index, writes the freeze file again when the project has one,
     and locks the result."""
@@ -980,24 +1072,27 @@ def verb_update(root, path, args):
     pinned = [f for f in PROJECT_FILES if f != FREEZE and project_index_state_in(root / f)]
     if pinned:
         say(f"{', '.join(pinned)} pins index-state, so the update resolves with the index as of that state")
-    write_lock(root, path, make_lock(root, configuration, None, refresh=packages, previous_plans=plans))
+    lock = make_lock(
+        root, configuration, None, refresh=packages, previous_plans=plans, tool=tool
+    )
+    write_lock(root, path, lock, outside_freeze(tool))
 
 
-def write_lock(root, path, lock):
+def write_lock(root, path, lock, freeze=None):
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(lock, indent=2, sort_keys=True) + "\n")
     say(
         f"wrote {path}: {len(lock['downloads'])} downloads, "
         f"{len(lock['outputs']['packages'])} project packages"
     )
-    check_lock(root, path, lock)
+    check_lock(root, path, lock, freeze)
     say("the lock resolves offline to the locked plan")
 
 
-def read_current_lock(root, path):
+def read_current_lock(root, path, freeze=None):
     """The lockfile, which must be as new as the project's Cabal files."""
     lock = read_lock(path)
-    stale = stale_files(root, lock)
+    stale = stale_files(root, lock, freeze)
     if stale:
         raise Failure(
             f"{', '.join(stale)} changed since the lock, so the lock may lack downloads the "
@@ -1016,15 +1111,18 @@ def prefetch_root(path):
     return path.with_name(path.name.removesuffix(".json") + ".prefetch")
 
 
-def verb_prefetch(root, path, args):
+def verb_prefetch(root, path, tool, args):
     """Realizes the locked sources and the toolchain for this system, keeps
     them alive with a GC root beside the lockfile, and writes the `cabal`
     shim. Prints the PATH export that puts the shim and the toolchain
     first: every cabal command, the language server's included, then runs
     offline on the locked sources."""
     if args:
-        raise Failure("`cabal-purifier prefetch` takes no arguments but --lockfile")
-    read_current_lock(root, path)
+        raise Failure(
+            "`cabal-purifier prefetch` takes no arguments but --lockfile and --tool-lockfile"
+        )
+    freeze = outside_freeze(tool)
+    read_current_lock(root, path, freeze)
     say("realizing the locked sources and the toolchain")
     out = run(
         [
@@ -1045,6 +1143,7 @@ def verb_prefetch(root, path, args):
             "--argstr",
             "purifier",
             purifier_source(),
+            *freeze_args(freeze),
             "--out-link",
             prefetch_root(path),
         ],
@@ -1057,10 +1156,10 @@ def verb_prefetch(root, path, args):
     shims = work_dir(root) / "bin"
     shims.mkdir(parents=True, exist_ok=True)
     shim = shims / "cabal"
-    shim.write_text(
-        "#!/bin/sh\n"
-        f'CABAL_PURIFIER_SHIM=1 CABAL_PURIFIER_LOCKFILE="{path}" exec "{self}" "$@"\n'
-    )
+    variables = f'CABAL_PURIFIER_SHIM=1 CABAL_PURIFIER_LOCKFILE="{path}"'
+    if freeze:
+        variables += f' CABAL_PURIFIER_TOOL_LOCKFILE="{freeze}"'
+    shim.write_text(f'#!/bin/sh\n{variables} exec "{self}" "$@"\n')
     shim.chmod(0o755)
     toolchain = work_dir(root) / "toolchain"
     if toolchain.is_symlink() or toolchain.exists():
@@ -1070,12 +1169,13 @@ def verb_prefetch(root, path, args):
     print(f'export PATH="{shims}:{toolchain}/bin:$PATH"')
 
 
-def shim_cabal(root, path, args):
+def shim_cabal(root, path, tool, args):
     """What the `cabal` shim runs: cabal offline on the locked sources."""
-    lock = read_current_lock(root, path)
+    freeze = outside_freeze(tool)
+    lock = read_current_lock(root, path, freeze)
     work = work_dir(root)
-    sources = realize(root, path, work / "sources")
-    env, project_args = offline_setup(root, lock, sources, work)
+    sources = realize(root, path, work / "sources", freeze)
+    env, project_args = offline_setup(root, lock, sources, work, freeze)
     env.pop("CABAL_PURIFIER_SHIM", None)
     # The project arguments go after the subcommand, which follows any
     # global options: the language server runs `cabal --builddir=… repl`.
@@ -1097,12 +1197,13 @@ def real_cabal(root):
     return found
 
 
-def verb_publish(root, path, args):
+def verb_publish(root, path, tool, args):
     """Uploads the release Nix built: the source tarball of each named
     package, or with --documentation the documentation tarball of one."""
     documentation = "--documentation" in args
     args = [a for a in args if a != "--documentation"]
-    lock = read_current_lock(root, path)
+    freeze = outside_freeze(tool)
+    lock = read_current_lock(root, path, freeze)
     packages = lock["outputs"]["packages"]
     if not args or args[0].startswith("-"):
         raise Failure("name the package to publish, as in `cabal-purifier publish my-package`")
@@ -1131,6 +1232,7 @@ def verb_publish(root, path, args):
             "--argstr",
             "purifier",
             purifier_source(),
+            *freeze_args(freeze),
         ],
         capture=True,
     )
@@ -1146,18 +1248,18 @@ def verb_publish(root, path, args):
 VERBS = {"lock": verb_lock, "update": verb_update, "prefetch": verb_prefetch, "publish": verb_publish}
 
 
-def take_lockfile_option(args):
-    """`--lockfile PATH` or `--lockfile=PATH` from anywhere in the arguments."""
+def take_option(args, name):
+    """`--name PATH` or `--name=PATH` from anywhere in the arguments."""
     rest, option = [], None
     i = 0
     while i < len(args):
-        if args[i] == "--lockfile":
+        if args[i] == name:
             if i + 1 == len(args):
-                raise Failure("--lockfile needs a path")
+                raise Failure(f"{name} needs a path")
             option = args[i + 1]
             i += 2
             continue
-        if args[i].startswith("--lockfile="):
+        if args[i].startswith(name + "="):
             option = args[i].split("=", 1)[1]
         else:
             rest.append(args[i])
@@ -1169,7 +1271,7 @@ def main(argv):
     try:
         if os.environ.get("CABAL_PURIFIER_SHIM") == "1":
             root = project_root()
-            shim_cabal(root, lockfile_path(root, None), argv)
+            shim_cabal(root, lockfile_path(root, None), tool_lockfile_path(None), argv)
             return 0
         if not argv or argv[0] in ("-h", "--help", "help"):
             print(__doc__)
@@ -1177,9 +1279,10 @@ def main(argv):
         verb, args = argv[0], argv[1:]
         if verb not in VERBS:
             raise Failure(f"unknown command {verb}; see `cabal-purifier --help`")
-        option, args = take_lockfile_option(args)
+        option, args = take_option(args, "--lockfile")
+        tool_option, args = take_option(args, "--tool-lockfile")
         root = project_root()
-        VERBS[verb](root, lockfile_path(root, option), args)
+        VERBS[verb](root, lockfile_path(root, option), tool_lockfile_path(tool_option), args)
     except Failure as error:
         say(str(error))
         return 1

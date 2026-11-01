@@ -5,16 +5,23 @@
   },
   "definition": {
     "cabal.project": "sha256-5lsIXLwPKmMOtw6L5ZUQojou/7kEuhOBq/vXdCdgqyE=",
+    "cabal.project.freeze": "sha256-imfAjFcfTbKTTLgUqHuh+RvX/roSHKH+/2DPY6TrSnI=",
     "external.cabal": "sha256-MTkMw5CWDDChsigC7zSh3A0WyrN2g6vgjiR4vM6H+SI="
   },
   "downloads": [
     {
-      "hash": "sha256-FIVxvBiAAxASQdpsSRMdBzJOY6iO0oOoTe8ulpRZlhk=",
+      "hash": "sha256-4qh3cXlo7fHiyRMS/v1P1T9OSbJ6Qh+YRSspqSVsrSo=",
+      "mirrors": [],
+      "path": "repository/async-2.2.5.cabal",
+      "url": "https://hackage.haskell.org/package/async-2.2.5/revision/4.cabal"
+    },
+    {
+      "hash": "sha256-GBhHPrq5ISr60u12KXrv3l+ui11EBNrzaTmuzmqPFvc=",
       "mirrors": [
-        "https://hackage.haskell.org/package/async-2.2.6/async-2.2.6.tar.gz"
+        "https://hackage.haskell.org/package/async-2.2.5/async-2.2.5.tar.gz"
       ],
-      "path": "repository/async-2.2.6.tar.gz",
-      "url": "https://hackage.haskell.org/package/async-2.2.6.tar.gz"
+      "path": "repository/async-2.2.5.tar.gz",
+      "url": "https://hackage.haskell.org/package/async-2.2.5.tar.gz"
     },
     {
       "hash": "sha256-7Qt8EM6Syf/kVCDa3DjG0520hv82M/8TVnzJ9195sRI=",
@@ -23,24 +30,10 @@
       ],
       "path": "repository/hashable-1.5.1.0.tar.gz",
       "url": "https://hackage.haskell.org/package/hashable-1.5.1.0.tar.gz"
-    },
-    {
-      "hash": "sha256-xd4fszd+08X0zYUadx0azFw30va+8KSZKVwOiFfaVgU=",
-      "mirrors": [],
-      "path": "repository/unordered-containers-0.2.21.cabal",
-      "url": "https://hackage.haskell.org/package/unordered-containers-0.2.21/revision/2.cabal"
-    },
-    {
-      "hash": "sha256-OyrRUitUbmGWAVMlfR5dI57uxeg9qEfVy02Jalu3+cA=",
-      "mirrors": [
-        "https://hackage.haskell.org/package/unordered-containers-0.2.21/unordered-containers-0.2.21.tar.gz"
-      ],
-      "path": "repository/unordered-containers-0.2.21.tar.gz",
-      "url": "https://hackage.haskell.org/package/unordered-containers-0.2.21.tar.gz"
     }
   ],
   "externalPaths": [],
-  "hash": "sha256-jMb6UB6FBkaEBNwpoKevlk9zGZ7vZ/ybYplAbfCD9GM=",
+  "hash": "sha256-ldYJJNYsEWq6GBjcodq1t2jv1LYv7yTONq74/otAWAU=",
   "indexState": null,
   "outputs": {
     "packages": {
@@ -73,13 +66,12 @@
         },
         {
           "flags": {
-            "bench": false,
-            "debug-auto-label": false
+            "bench": false
           },
           "installed": false,
           "local": false,
           "name": "async",
-          "version": "2.2.6"
+          "version": "2.2.5"
         },
         {
           "flags": {},
@@ -230,15 +222,6 @@
           "local": false,
           "name": "transformers",
           "version": "0.6.1.1"
-        },
-        {
-          "flags": {
-            "debug": false
-          },
-          "installed": false,
-          "local": false,
-          "name": "unordered-containers",
-          "version": "0.2.21"
         }
       ]
     },
@@ -254,13 +237,12 @@
         },
         {
           "flags": {
-            "bench": false,
-            "debug-auto-label": false
+            "bench": false
           },
           "installed": false,
           "local": false,
           "name": "async",
-          "version": "2.2.6"
+          "version": "2.2.5"
         },
         {
           "flags": {},
@@ -411,15 +393,6 @@
           "local": false,
           "name": "transformers",
           "version": "0.6.1.1"
-        },
-        {
-          "flags": {
-            "debug": false
-          },
-          "installed": false,
-          "local": false,
-          "name": "unordered-containers",
-          "version": "0.2.21"
         }
       ]
     }

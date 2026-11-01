@@ -44,6 +44,9 @@
   # The lockfile. A lockfile kept outside `src` takes the place of any
   # lockfile in it.
   lockFile ? src + "/cabal-purifier.lock.json",
+  # A cabal.project.freeze kept outside `src`, which takes the place of the
+  # one in `src`. The default, null, is the copy in `src`.
+  cabalFreeze ? null,
 }:
 let
   inherit (builtins)
@@ -224,8 +227,12 @@ let
       hashAlgo = "sha256";
       toHashFormat = "sri";
     };
+  # The freeze file kept outside the project takes the place of the one in
+  # it.
+  fileOf =
+    f: if f == "cabal.project.freeze" && cabalFreeze != null then cabalFreeze else src + "/${f}";
   staleFiles = filter (
-    f: !(builtins.pathExists (src + "/${f}")) || sri (src + "/${f}") != raw.definition.${f}
+    f: !(builtins.pathExists (fileOf f)) || sri (fileOf f) != raw.definition.${f}
   ) (attrNames raw.definition);
 
   problems =
