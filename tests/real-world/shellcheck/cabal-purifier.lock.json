@@ -1,0 +1,2100 @@
+{
+  "cabalInstall": "3.16.1.0",
+  "configuration": {
+    "benchmarks": true,
+    "tests": true
+  },
+  "definition": {
+    "ShellCheck.cabal": "sha256-L1IQz5sUuexIfmg6QY8YhAD/WnA7n7xjhSRPyB2s+S4="
+  },
+  "downloads": [
+    {
+      "hash": "sha256-zX4m09Xr9/LBp1Ja6+JR+8v/7ipjYttjS0viO541TYU=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/Diff-1.0.2/Diff-1.0.2.tar.gz"
+      ],
+      "path": "repository/Diff-1.0.2.tar.gz",
+      "url": "https://hackage.haskell.org/package/Diff-1.0.2.tar.gz"
+    },
+    {
+      "hash": "sha256-ZD0fSOY0gKxtA6jwq1l21mUnybQrH8qB0b83PRAJnGs=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/OneTuple-0.4.3/OneTuple-0.4.3.tar.gz"
+      ],
+      "path": "repository/OneTuple-0.4.3.tar.gz",
+      "url": "https://hackage.haskell.org/package/OneTuple-0.4.3.tar.gz"
+    },
+    {
+      "hash": "sha256-C1Y/puoRZT121X6WYl9KR24Cuf2uupwF0szBDY2oAsA=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/QuickCheck-2.16.0.0/QuickCheck-2.16.0.0.tar.gz"
+      ],
+      "path": "repository/QuickCheck-2.16.0.0.tar.gz",
+      "url": "https://hackage.haskell.org/package/QuickCheck-2.16.0.0.tar.gz"
+    },
+    {
+      "hash": "sha256-Xks52jlWVqWYJ7AoBQiq/ccDNXmLUOXW/VJZYCYlGCU=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/StateVar-1.2.2/StateVar-1.2.2.tar.gz"
+      ],
+      "path": "repository/StateVar-1.2.2.tar.gz",
+      "url": "https://hackage.haskell.org/package/StateVar-1.2.2.tar.gz"
+    },
+    {
+      "hash": "sha256-6oLWUMC72Id9vxOgO5uq475+1KZfToz+W06stPW+rnU=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/aeson-2.2.5.1/aeson-2.2.5.1.tar.gz"
+      ],
+      "path": "repository/aeson-2.2.5.1.tar.gz",
+      "url": "https://hackage.haskell.org/package/aeson-2.2.5.1.tar.gz"
+    },
+    {
+      "hash": "sha256-nPCDzvLiuoikJfEyyKgr+pMetLDDgjKyAX+PzqLiMHM=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/ansi-terminal-1.1.5/ansi-terminal-1.1.5.tar.gz"
+      ],
+      "path": "repository/ansi-terminal-1.1.5.tar.gz",
+      "url": "https://hackage.haskell.org/package/ansi-terminal-1.1.5.tar.gz"
+    },
+    {
+      "hash": "sha256-n8nOIVfxiJvZmk0iyfHGRYlZC+D3l8Pv5xyPoXoRpok=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/ansi-terminal-types-1.1.3/ansi-terminal-types-1.1.3.tar.gz"
+      ],
+      "path": "repository/ansi-terminal-types-1.1.3.tar.gz",
+      "url": "https://hackage.haskell.org/package/ansi-terminal-types-1.1.3.tar.gz"
+    },
+    {
+      "hash": "sha256-dmsQQO2lJVv88Q4amFnAbQ7WrQ4qyH7ZFbsDVXTRCuQ=",
+      "mirrors": [],
+      "path": "repository/assoc-1.1.1.cabal",
+      "url": "https://hackage.haskell.org/package/assoc-1.1.1/revision/2.cabal"
+    },
+    {
+      "hash": "sha256-IxFJt/7wn13ZWvUSKGFeOyltvQ+q3soFPgZEpLE7D/Y=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/assoc-1.1.1/assoc-1.1.1.tar.gz"
+      ],
+      "path": "repository/assoc-1.1.1.tar.gz",
+      "url": "https://hackage.haskell.org/package/assoc-1.1.1.tar.gz"
+    },
+    {
+      "hash": "sha256-CMwoOjE1D3vSiypdMa9pPuM38lk9PnIimZty3UlUxys=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/base-orphans-0.9.4/base-orphans-0.9.4.tar.gz"
+      ],
+      "path": "repository/base-orphans-0.9.4.tar.gz",
+      "url": "https://hackage.haskell.org/package/base-orphans-0.9.4.tar.gz"
+    },
+    {
+      "hash": "sha256-WPHWbbce2d1wZI6soaCYayk1Szpptb/XKc4aiWdmRm4=",
+      "mirrors": [],
+      "path": "repository/bifunctors-5.6.3.cabal",
+      "url": "https://hackage.haskell.org/package/bifunctors-5.6.3/revision/1.cabal"
+    },
+    {
+      "hash": "sha256-rXo1fwIvTHgMUFBA1z8cBqT9aXtKC6thI7vXO1XYEVw=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/bifunctors-5.6.3/bifunctors-5.6.3.tar.gz"
+      ],
+      "path": "repository/bifunctors-5.6.3.tar.gz",
+      "url": "https://hackage.haskell.org/package/bifunctors-5.6.3.tar.gz"
+    },
+    {
+      "hash": "sha256-It5x/eOLI20+kWioMrXh510ftPQChme990eztMjBUpw=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/character-ps-0.1/character-ps-0.1.tar.gz"
+      ],
+      "path": "repository/character-ps-0.1.tar.gz",
+      "url": "https://hackage.haskell.org/package/character-ps-0.1.tar.gz"
+    },
+    {
+      "hash": "sha256-HzsQVWdavk4zYoAMyb96ubkt/fIaH2yCslJhEnC+loA=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/colour-2.3.7/colour-2.3.7.tar.gz"
+      ],
+      "path": "repository/colour-2.3.7.tar.gz",
+      "url": "https://hackage.haskell.org/package/colour-2.3.7.tar.gz"
+    },
+    {
+      "hash": "sha256-6XOd8r9ZRJWAYqTqc73jvzXAh5zuCUTt9/Bb6/mT+cE=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/comonad-5.0.10/comonad-5.0.10.tar.gz"
+      ],
+      "path": "repository/comonad-5.0.10.tar.gz",
+      "url": "https://hackage.haskell.org/package/comonad-5.0.10.tar.gz"
+    },
+    {
+      "hash": "sha256-ZfMmA1TuX9Hyx//FTP+Z0it5TCVPBTc0l5rTeCDm7+M=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/contravariant-1.5.6/contravariant-1.5.6.tar.gz"
+      ],
+      "path": "repository/contravariant-1.5.6.tar.gz",
+      "url": "https://hackage.haskell.org/package/contravariant-1.5.6.tar.gz"
+    },
+    {
+      "hash": "sha256-IANgxJzIHPi4u99Jr9Su4D//0J0zlbCAp+fGX88B0xM=",
+      "mirrors": [],
+      "path": "repository/data-fix-0.3.4.cabal",
+      "url": "https://hackage.haskell.org/package/data-fix-0.3.4/revision/2.cabal"
+    },
+    {
+      "hash": "sha256-jfBS0YwEernpIAU2qHmbWvOZfr7Luwkac4S2voQWqzc=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/data-fix-0.3.4/data-fix-0.3.4.tar.gz"
+      ],
+      "path": "repository/data-fix-0.3.4.tar.gz",
+      "url": "https://hackage.haskell.org/package/data-fix-0.3.4.tar.gz"
+    },
+    {
+      "hash": "sha256-rusCiiPbn5sHPiSmvXZrebnVjCtAewa/MylsJ+kmS6o=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/distributive-0.6.3/distributive-0.6.3.tar.gz"
+      ],
+      "path": "repository/distributive-0.6.3.tar.gz",
+      "url": "https://hackage.haskell.org/package/distributive-0.6.3.tar.gz"
+    },
+    {
+      "hash": "sha256-hUcnWUxagWqz0Q8VsbxP7a+eP30e9Reiu5AR8puiYdI=",
+      "mirrors": [],
+      "path": "repository/dlist-1.0.cabal",
+      "url": "https://hackage.haskell.org/package/dlist-1.0/revision/2.cabal"
+    },
+    {
+      "hash": "sha256-Fz1jcyi7Fz/MNl8w0p/0qUKSoeDlVYrrPfwR3oFRARU=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/dlist-1.0/dlist-1.0.tar.gz"
+      ],
+      "path": "repository/dlist-1.0.tar.gz",
+      "url": "https://hackage.haskell.org/package/dlist-1.0.tar.gz"
+    },
+    {
+      "hash": "sha256-AvcThNPyhvhHOljFXtPKBA9NFCykut9cAkqwd7xANi8=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/fgl-5.8.3.1/fgl-5.8.3.1.tar.gz"
+      ],
+      "path": "repository/fgl-5.8.3.1.tar.gz",
+      "url": "https://hackage.haskell.org/package/fgl-5.8.3.1.tar.gz"
+    },
+    {
+      "hash": "sha256-7Qt8EM6Syf/kVCDa3DjG0520hv82M/8TVnzJ9195sRI=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/hashable-1.5.1.0/hashable-1.5.1.0.tar.gz"
+      ],
+      "path": "repository/hashable-1.5.1.0.tar.gz",
+      "url": "https://hackage.haskell.org/package/hashable-1.5.1.0.tar.gz"
+    },
+    {
+      "hash": "sha256-ObJf2SmwKwGj/ln+x8qLLabw+eKCJ2t6hOY6RwLE1yU=",
+      "mirrors": [],
+      "path": "repository/hsc2hs-0.68.10.cabal",
+      "url": "https://hackage.haskell.org/package/hsc2hs-0.68.10/revision/5.cabal"
+    },
+    {
+      "hash": "sha256-b04014j+LKcJHuChAwfuinwGChuokPK/+tFqfU1c73Y=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/hsc2hs-0.68.10/hsc2hs-0.68.10.tar.gz"
+      ],
+      "path": "repository/hsc2hs-0.68.10.tar.gz",
+      "url": "https://hackage.haskell.org/package/hsc2hs-0.68.10.tar.gz"
+    },
+    {
+      "hash": "sha256-ZCNZfTUorGbFS+qrn1QIQpwKKbjLmMRaFkXyVa73/vA=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/indexed-traversable-0.1.5/indexed-traversable-0.1.5.tar.gz"
+      ],
+      "path": "repository/indexed-traversable-0.1.5.tar.gz",
+      "url": "https://hackage.haskell.org/package/indexed-traversable-0.1.5.tar.gz"
+    },
+    {
+      "hash": "sha256-5p1B8jqVRjwuA67gM3Sk9InHL3vyNb4lFJnEzKlBH+w=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/indexed-traversable-instances-0.1.2.1/indexed-traversable-instances-0.1.2.1.tar.gz"
+      ],
+      "path": "repository/indexed-traversable-instances-0.1.2.1.tar.gz",
+      "url": "https://hackage.haskell.org/package/indexed-traversable-instances-0.1.2.1.tar.gz"
+    },
+    {
+      "hash": "sha256-Ej0bCIQE8JdlAMaNgQWXiqLjKQjOVQjjKuvSN/BEfJ8=",
+      "mirrors": [],
+      "path": "repository/integer-conversion-0.1.1.cabal",
+      "url": "https://hackage.haskell.org/package/integer-conversion-0.1.1/revision/2.cabal"
+    },
+    {
+      "hash": "sha256-wYFkoEgHMxD2NT68ZMkDe1KkuCmZY84F4Ce89g4iFVo=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/integer-conversion-0.1.1/integer-conversion-0.1.1.tar.gz"
+      ],
+      "path": "repository/integer-conversion-0.1.1.tar.gz",
+      "url": "https://hackage.haskell.org/package/integer-conversion-0.1.1.tar.gz"
+    },
+    {
+      "hash": "sha256-Zt/28fd4/h7GiROf4SXNTmqVZDc0xlHIker6LFBmlFk=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/integer-logarithms-1.0.5/integer-logarithms-1.0.5.tar.gz"
+      ],
+      "path": "repository/integer-logarithms-1.0.5.tar.gz",
+      "url": "https://hackage.haskell.org/package/integer-logarithms-1.0.5.tar.gz"
+    },
+    {
+      "hash": "sha256-b/+1c3OWK1ZRotuLCvcyCYs78CmnztdqmFVhXeICZYg=",
+      "mirrors": [],
+      "path": "repository/network-uri-2.6.4.2.cabal",
+      "url": "https://hackage.haskell.org/package/network-uri-2.6.4.2/revision/1.cabal"
+    },
+    {
+      "hash": "sha256-nBiJcxJuiTJQuIHyDogR3KBsIjwjQCsG96Hy6ZV5cig=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/network-uri-2.6.4.2/network-uri-2.6.4.2.tar.gz"
+      ],
+      "path": "repository/network-uri-2.6.4.2.tar.gz",
+      "url": "https://hackage.haskell.org/package/network-uri-2.6.4.2.tar.gz"
+    },
+    {
+      "hash": "sha256-TB3L2/JJj3zdiIJuh2QD23+NgZMZYgYOxMOlehhsbMM=",
+      "mirrors": [],
+      "path": "repository/optparse-applicative-0.19.0.0.cabal",
+      "url": "https://hackage.haskell.org/package/optparse-applicative-0.19.0.0/revision/1.cabal"
+    },
+    {
+      "hash": "sha256-zxau79ghcwx3OER/p8a3rafKHJzCVADWTvKDKU00WHE=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/optparse-applicative-0.19.0.0/optparse-applicative-0.19.0.0.tar.gz"
+      ],
+      "path": "repository/optparse-applicative-0.19.0.0.tar.gz",
+      "url": "https://hackage.haskell.org/package/optparse-applicative-0.19.0.0.tar.gz"
+    },
+    {
+      "hash": "sha256-8E62/YZVEq2Gctoei/zqHDhFCfwvZixBt6w514mHBu4=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/prettyprinter-1.7.2/prettyprinter-1.7.2.tar.gz"
+      ],
+      "path": "repository/prettyprinter-1.7.2.tar.gz",
+      "url": "https://hackage.haskell.org/package/prettyprinter-1.7.2.tar.gz"
+    },
+    {
+      "hash": "sha256-kSzTQNXCWDER4urrmqA7h1UcouPdeLv9NGdWufHmyf4=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/prettyprinter-ansi-terminal-1.1.4/prettyprinter-ansi-terminal-1.1.4.tar.gz"
+      ],
+      "path": "repository/prettyprinter-ansi-terminal-1.1.4.tar.gz",
+      "url": "https://hackage.haskell.org/package/prettyprinter-ansi-terminal-1.1.4.tar.gz"
+    },
+    {
+      "hash": "sha256-dWsiLHFbxu9bqB+mnNuqIMXFO+tvFvF0uLrMk6bSOfA=",
+      "mirrors": [],
+      "path": "repository/primitive-0.9.1.0.cabal",
+      "url": "https://hackage.haskell.org/package/primitive-0.9.1.0/revision/1.cabal"
+    },
+    {
+      "hash": "sha256-RLTeQYE8e8Xbilf4fDYSoGm2UIaUYmi6FlCXJS69PXY=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/primitive-0.9.1.0/primitive-0.9.1.0.tar.gz"
+      ],
+      "path": "repository/primitive-0.9.1.0.tar.gz",
+      "url": "https://hackage.haskell.org/package/primitive-0.9.1.0.tar.gz"
+    },
+    {
+      "hash": "sha256-2ECsg/JlsM+ipnj47HhifrUM+b4vBnxSyKQjnCm3GjU=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/random-1.3.1/random-1.3.1.tar.gz"
+      ],
+      "path": "repository/random-1.3.1.tar.gz",
+      "url": "https://hackage.haskell.org/package/random-1.3.1.tar.gz"
+    },
+    {
+      "hash": "sha256-6Mot7lmMeQ3RwcQ1m90eSV2biB9aofU5wi8N1VY3R78=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/regex-base-0.94.0.3/regex-base-0.94.0.3.tar.gz"
+      ],
+      "path": "repository/regex-base-0.94.0.3.tar.gz",
+      "url": "https://hackage.haskell.org/package/regex-base-0.94.0.3.tar.gz"
+    },
+    {
+      "hash": "sha256-kJtQ0MtwO72PDmJ+2l1xAbz8fDcyBbLhohh+msz5qGI=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/regex-tdfa-1.3.2.7/regex-tdfa-1.3.2.7.tar.gz"
+      ],
+      "path": "repository/regex-tdfa-1.3.2.7.tar.gz",
+      "url": "https://hackage.haskell.org/package/regex-tdfa-1.3.2.7.tar.gz"
+    },
+    {
+      "hash": "sha256-HQloN7ppDKNxLyQ0cryfuxdXT48p9Mrzkag3OUAckBY=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/scientific-0.3.10.0/scientific-0.3.10.0.tar.gz"
+      ],
+      "path": "repository/scientific-0.3.10.0.tar.gz",
+      "url": "https://hackage.haskell.org/package/scientific-0.3.10.0.tar.gz"
+    },
+    {
+      "hash": "sha256-D1E4nlevZGBC3OwlEZYGF77ihXIxrCkSKM9O9mIalGQ=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/semialign-1.4/semialign-1.4.tar.gz"
+      ],
+      "path": "repository/semialign-1.4.tar.gz",
+      "url": "https://hackage.haskell.org/package/semialign-1.4.tar.gz"
+    },
+    {
+      "hash": "sha256-UsWjRv33Q4Bhj2f/eEmJ75B4SY273/CeTY4v7SAgLiw=",
+      "mirrors": [],
+      "path": "repository/semigroupoids-6.0.2.cabal",
+      "url": "https://hackage.haskell.org/package/semigroupoids-6.0.2/revision/1.cabal"
+    },
+    {
+      "hash": "sha256-5IJY5JVCJF72xY1/QZqD0dGrkbAT2Sw7XIx8BI2qoS4=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/semigroupoids-6.0.2/semigroupoids-6.0.2.tar.gz"
+      ],
+      "path": "repository/semigroupoids-6.0.2.tar.gz",
+      "url": "https://hackage.haskell.org/package/semigroupoids-6.0.2.tar.gz"
+    },
+    {
+      "hash": "sha256-ph1OizD1oWUm19MRcbZ0rnkk0iB/N4Bg0TNjvYeU3ow=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/splitmix-0.1.3.2/splitmix-0.1.3.2.tar.gz"
+      ],
+      "path": "repository/splitmix-0.1.3.2.tar.gz",
+      "url": "https://hackage.haskell.org/package/splitmix-0.1.3.2.tar.gz"
+    },
+    {
+      "hash": "sha256-WMNzt8d0jLtKWmyMFQc/maHBCpqbtolKwz9Dpc25AfI=",
+      "mirrors": [],
+      "path": "repository/strict-0.5.1.cabal",
+      "url": "https://hackage.haskell.org/package/strict-0.5.1/revision/1.cabal"
+    },
+    {
+      "hash": "sha256-d3GSgMKoYxLnSCJ7+nMu6q4OffSNV6zDwuW3sHr+L4s=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/strict-0.5.1/strict-0.5.1.tar.gz"
+      ],
+      "path": "repository/strict-0.5.1.tar.gz",
+      "url": "https://hackage.haskell.org/package/strict-0.5.1.tar.gz"
+    },
+    {
+      "hash": "sha256-sojPZ7zn3yshcX/CVMBd6o64FP7EEFnSY7pdgizYx14=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/tagged-0.8.11/tagged-0.8.11.tar.gz"
+      ],
+      "path": "repository/tagged-0.8.11.tar.gz",
+      "url": "https://hackage.haskell.org/package/tagged-0.8.11.tar.gz"
+    },
+    {
+      "hash": "sha256-X8Sam3Ymka+hh8TfDfENyVrxr3EvRV0gA5vGOv3zRyI=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/tasty-1.5.5/tasty-1.5.5.tar.gz"
+      ],
+      "path": "repository/tasty-1.5.5.tar.gz",
+      "url": "https://hackage.haskell.org/package/tasty-1.5.5.tar.gz"
+    },
+    {
+      "hash": "sha256-IdfxMg7rhhd+hg7Aej2OdRCXextBWpbrti7krXKVV3A=",
+      "mirrors": [],
+      "path": "repository/terminal-size-0.3.4.cabal",
+      "url": "https://hackage.haskell.org/package/terminal-size-0.3.4/revision/1.cabal"
+    },
+    {
+      "hash": "sha256-sPBw1pJs2qzzpBLFUY5cI6/KHg7QCAilMoyW5Gi2f0k=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/terminal-size-0.3.4/terminal-size-0.3.4.tar.gz"
+      ],
+      "path": "repository/terminal-size-0.3.4.tar.gz",
+      "url": "https://hackage.haskell.org/package/terminal-size-0.3.4.tar.gz"
+    },
+    {
+      "hash": "sha256-3bsTrscKL9VMeiW/heOKRn0NVZmYDSH0kls8cG+Pc5g=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/text-iso8601-0.1.1.2/text-iso8601-0.1.1.2.tar.gz"
+      ],
+      "path": "repository/text-iso8601-0.1.1.2.tar.gz",
+      "url": "https://hackage.haskell.org/package/text-iso8601-0.1.1.2.tar.gz"
+    },
+    {
+      "hash": "sha256-g2afQCNUJ0+83HUSZEOvczJnuVXkUfcsDG2Gro2odBY=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/text-short-0.1.6.1/text-short-0.1.6.1.tar.gz"
+      ],
+      "path": "repository/text-short-0.1.6.1.tar.gz",
+      "url": "https://hackage.haskell.org/package/text-short-0.1.6.1.tar.gz"
+    },
+    {
+      "hash": "sha256-lGZUvNjqLf99AFgGGGGoyJi+mt3yDJLTz6U7Z55zdiI=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/th-abstraction-0.7.2.0/th-abstraction-0.7.2.0.tar.gz"
+      ],
+      "path": "repository/th-abstraction-0.7.2.0.tar.gz",
+      "url": "https://hackage.haskell.org/package/th-abstraction-0.7.2.0.tar.gz"
+    },
+    {
+      "hash": "sha256-nibxIjDTiuVtz5T4wTl5ncO3N280NNNc50hHoKJP1f8=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/th-compat-0.1.7/th-compat-0.1.7.tar.gz"
+      ],
+      "path": "repository/th-compat-0.1.7.tar.gz",
+      "url": "https://hackage.haskell.org/package/th-compat-0.1.7.tar.gz"
+    },
+    {
+      "hash": "sha256-uhrsmlAusrP5DvJU9CBGijxOW5t+gyTj3ccDUUPJJkA=",
+      "mirrors": [],
+      "path": "repository/these-1.2.1.cabal",
+      "url": "https://hackage.haskell.org/package/these-1.2.1/revision/3.cabal"
+    },
+    {
+      "hash": "sha256-F9bZMzZe2r+AGhaELBQDvdN8xTAPqi/MqYDezasi5N4=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/these-1.2.1/these-1.2.1.tar.gz"
+      ],
+      "path": "repository/these-1.2.1.tar.gz",
+      "url": "https://hackage.haskell.org/package/these-1.2.1.tar.gz"
+    },
+    {
+      "hash": "sha256-DCkeDDyH7giyUXEHtikBsQKgQNyGIDtTvfB6lv9WMuA=",
+      "mirrors": [],
+      "path": "repository/time-compat-1.9.9.cabal",
+      "url": "https://hackage.haskell.org/package/time-compat-1.9.9/revision/1.cabal"
+    },
+    {
+      "hash": "sha256-kPrd7VPPnBWFXuv4CelTavj4XQDjK4L3yLUG0vrffCU=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/time-compat-1.9.9/time-compat-1.9.9.tar.gz"
+      ],
+      "path": "repository/time-compat-1.9.9.tar.gz",
+      "url": "https://hackage.haskell.org/package/time-compat-1.9.9.tar.gz"
+    },
+    {
+      "hash": "sha256-8FwhRe6Nd+13OQjSenfH+L5NlBmvkKdXB2t5nEoZTag=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/transformers-compat-0.8/transformers-compat-0.8.tar.gz"
+      ],
+      "path": "repository/transformers-compat-0.8.tar.gz",
+      "url": "https://hackage.haskell.org/package/transformers-compat-0.8.tar.gz"
+    },
+    {
+      "hash": "sha256-xd4fszd+08X0zYUadx0azFw30va+8KSZKVwOiFfaVgU=",
+      "mirrors": [],
+      "path": "repository/unordered-containers-0.2.21.cabal",
+      "url": "https://hackage.haskell.org/package/unordered-containers-0.2.21/revision/2.cabal"
+    },
+    {
+      "hash": "sha256-OyrRUitUbmGWAVMlfR5dI57uxeg9qEfVy02Jalu3+cA=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/unordered-containers-0.2.21/unordered-containers-0.2.21.tar.gz"
+      ],
+      "path": "repository/unordered-containers-0.2.21.tar.gz",
+      "url": "https://hackage.haskell.org/package/unordered-containers-0.2.21.tar.gz"
+    },
+    {
+      "hash": "sha256-nwDyeLlxEQS2rMFATZ8NRcEYO0mHz5wHQDvrwFwMMCQ=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/uuid-types-1.0.6.1/uuid-types-1.0.6.1.tar.gz"
+      ],
+      "path": "repository/uuid-types-1.0.6.1.tar.gz",
+      "url": "https://hackage.haskell.org/package/uuid-types-1.0.6.1.tar.gz"
+    },
+    {
+      "hash": "sha256-PsEt5YDuMc6sibMU/QC1BX7UAZjAs9np2vpUwZQeaUI=",
+      "mirrors": [],
+      "path": "repository/vector-0.13.2.0.cabal",
+      "url": "https://hackage.haskell.org/package/vector-0.13.2.0/revision/5.cabal"
+    },
+    {
+      "hash": "sha256-KPIDx4bL+Kxtw/6jN47DbzQXPVBftKHdYPyEGK2RxCM=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/vector-0.13.2.0/vector-0.13.2.0.tar.gz"
+      ],
+      "path": "repository/vector-0.13.2.0.tar.gz",
+      "url": "https://hackage.haskell.org/package/vector-0.13.2.0.tar.gz"
+    },
+    {
+      "hash": "sha256-SDvm3xPHIWmpF2QFiWZvn+znvqn6E/zUHQUtqzfqKJ4=",
+      "mirrors": [],
+      "path": "repository/vector-stream-0.1.0.1.cabal",
+      "url": "https://hackage.haskell.org/package/vector-stream-0.1.0.1/revision/4.cabal"
+    },
+    {
+      "hash": "sha256-0PUHM0vepUMaLwf1Jal/KedlIsMiEPXebVorTx1Cv3w=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/vector-stream-0.1.0.1/vector-stream-0.1.0.1.tar.gz"
+      ],
+      "path": "repository/vector-stream-0.1.0.1.tar.gz",
+      "url": "https://hackage.haskell.org/package/vector-stream-0.1.0.1.tar.gz"
+    },
+    {
+      "hash": "sha256-pWAEMd9dKX8JjDIsf7wuzoBORK3guyAiqDjeJGBNYnU=",
+      "mirrors": [],
+      "path": "repository/witherable-0.5.cabal",
+      "url": "https://hackage.haskell.org/package/witherable-0.5/revision/2.cabal"
+    },
+    {
+      "hash": "sha256-SENMweRlsTy8ATOpDD7A2CfJO3fOlYB/4KOLZfSRjNE=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/witherable-0.5/witherable-0.5.tar.gz"
+      ],
+      "path": "repository/witherable-0.5.tar.gz",
+      "url": "https://hackage.haskell.org/package/witherable-0.5.tar.gz"
+    }
+  ],
+  "externalPaths": [],
+  "indexState": "2026-11-01T10:07:13Z",
+  "outputs": {
+    "packages": {
+      "ShellCheck": {
+        "benchmarks": [],
+        "dir": ".",
+        "executables": [
+          "shellcheck"
+        ],
+        "foreignLibraries": [],
+        "library": true,
+        "sublibraries": [],
+        "testSuites": [
+          "test-shellcheck"
+        ],
+        "version": "0.11.0"
+      }
+    }
+  },
+  "remotePackages": [],
+  "repository": [
+    {
+      "file": "Diff-1.0.2.tar.gz",
+      "from": "repository/Diff-1.0.2.tar.gz"
+    },
+    {
+      "file": "OneTuple-0.4.3.tar.gz",
+      "from": "repository/OneTuple-0.4.3.tar.gz"
+    },
+    {
+      "file": "QuickCheck-2.16.0.0.tar.gz",
+      "from": "repository/QuickCheck-2.16.0.0.tar.gz"
+    },
+    {
+      "file": "StateVar-1.2.2.tar.gz",
+      "from": "repository/StateVar-1.2.2.tar.gz"
+    },
+    {
+      "file": "aeson-2.2.5.1.tar.gz",
+      "from": "repository/aeson-2.2.5.1.tar.gz"
+    },
+    {
+      "file": "ansi-terminal-1.1.5.tar.gz",
+      "from": "repository/ansi-terminal-1.1.5.tar.gz"
+    },
+    {
+      "file": "ansi-terminal-types-1.1.3.tar.gz",
+      "from": "repository/ansi-terminal-types-1.1.3.tar.gz"
+    },
+    {
+      "file": "assoc-1.1.1.cabal",
+      "from": "repository/assoc-1.1.1.cabal"
+    },
+    {
+      "file": "assoc-1.1.1.tar.gz",
+      "from": "repository/assoc-1.1.1.tar.gz"
+    },
+    {
+      "file": "base-orphans-0.9.4.tar.gz",
+      "from": "repository/base-orphans-0.9.4.tar.gz"
+    },
+    {
+      "file": "bifunctors-5.6.3.cabal",
+      "from": "repository/bifunctors-5.6.3.cabal"
+    },
+    {
+      "file": "bifunctors-5.6.3.tar.gz",
+      "from": "repository/bifunctors-5.6.3.tar.gz"
+    },
+    {
+      "file": "character-ps-0.1.tar.gz",
+      "from": "repository/character-ps-0.1.tar.gz"
+    },
+    {
+      "file": "colour-2.3.7.tar.gz",
+      "from": "repository/colour-2.3.7.tar.gz"
+    },
+    {
+      "file": "comonad-5.0.10.tar.gz",
+      "from": "repository/comonad-5.0.10.tar.gz"
+    },
+    {
+      "file": "contravariant-1.5.6.tar.gz",
+      "from": "repository/contravariant-1.5.6.tar.gz"
+    },
+    {
+      "file": "data-fix-0.3.4.cabal",
+      "from": "repository/data-fix-0.3.4.cabal"
+    },
+    {
+      "file": "data-fix-0.3.4.tar.gz",
+      "from": "repository/data-fix-0.3.4.tar.gz"
+    },
+    {
+      "file": "distributive-0.6.3.tar.gz",
+      "from": "repository/distributive-0.6.3.tar.gz"
+    },
+    {
+      "file": "dlist-1.0.cabal",
+      "from": "repository/dlist-1.0.cabal"
+    },
+    {
+      "file": "dlist-1.0.tar.gz",
+      "from": "repository/dlist-1.0.tar.gz"
+    },
+    {
+      "file": "fgl-5.8.3.1.tar.gz",
+      "from": "repository/fgl-5.8.3.1.tar.gz"
+    },
+    {
+      "file": "hashable-1.5.1.0.tar.gz",
+      "from": "repository/hashable-1.5.1.0.tar.gz"
+    },
+    {
+      "file": "hsc2hs-0.68.10.cabal",
+      "from": "repository/hsc2hs-0.68.10.cabal"
+    },
+    {
+      "file": "hsc2hs-0.68.10.tar.gz",
+      "from": "repository/hsc2hs-0.68.10.tar.gz"
+    },
+    {
+      "file": "indexed-traversable-0.1.5.tar.gz",
+      "from": "repository/indexed-traversable-0.1.5.tar.gz"
+    },
+    {
+      "file": "indexed-traversable-instances-0.1.2.1.tar.gz",
+      "from": "repository/indexed-traversable-instances-0.1.2.1.tar.gz"
+    },
+    {
+      "file": "integer-conversion-0.1.1.cabal",
+      "from": "repository/integer-conversion-0.1.1.cabal"
+    },
+    {
+      "file": "integer-conversion-0.1.1.tar.gz",
+      "from": "repository/integer-conversion-0.1.1.tar.gz"
+    },
+    {
+      "file": "integer-logarithms-1.0.5.tar.gz",
+      "from": "repository/integer-logarithms-1.0.5.tar.gz"
+    },
+    {
+      "file": "network-uri-2.6.4.2.cabal",
+      "from": "repository/network-uri-2.6.4.2.cabal"
+    },
+    {
+      "file": "network-uri-2.6.4.2.tar.gz",
+      "from": "repository/network-uri-2.6.4.2.tar.gz"
+    },
+    {
+      "file": "optparse-applicative-0.19.0.0.cabal",
+      "from": "repository/optparse-applicative-0.19.0.0.cabal"
+    },
+    {
+      "file": "optparse-applicative-0.19.0.0.tar.gz",
+      "from": "repository/optparse-applicative-0.19.0.0.tar.gz"
+    },
+    {
+      "file": "prettyprinter-1.7.2.tar.gz",
+      "from": "repository/prettyprinter-1.7.2.tar.gz"
+    },
+    {
+      "file": "prettyprinter-ansi-terminal-1.1.4.tar.gz",
+      "from": "repository/prettyprinter-ansi-terminal-1.1.4.tar.gz"
+    },
+    {
+      "file": "primitive-0.9.1.0.cabal",
+      "from": "repository/primitive-0.9.1.0.cabal"
+    },
+    {
+      "file": "primitive-0.9.1.0.tar.gz",
+      "from": "repository/primitive-0.9.1.0.tar.gz"
+    },
+    {
+      "file": "random-1.3.1.tar.gz",
+      "from": "repository/random-1.3.1.tar.gz"
+    },
+    {
+      "file": "regex-base-0.94.0.3.tar.gz",
+      "from": "repository/regex-base-0.94.0.3.tar.gz"
+    },
+    {
+      "file": "regex-tdfa-1.3.2.7.tar.gz",
+      "from": "repository/regex-tdfa-1.3.2.7.tar.gz"
+    },
+    {
+      "file": "scientific-0.3.10.0.tar.gz",
+      "from": "repository/scientific-0.3.10.0.tar.gz"
+    },
+    {
+      "file": "semialign-1.4.tar.gz",
+      "from": "repository/semialign-1.4.tar.gz"
+    },
+    {
+      "file": "semigroupoids-6.0.2.cabal",
+      "from": "repository/semigroupoids-6.0.2.cabal"
+    },
+    {
+      "file": "semigroupoids-6.0.2.tar.gz",
+      "from": "repository/semigroupoids-6.0.2.tar.gz"
+    },
+    {
+      "file": "splitmix-0.1.3.2.tar.gz",
+      "from": "repository/splitmix-0.1.3.2.tar.gz"
+    },
+    {
+      "file": "strict-0.5.1.cabal",
+      "from": "repository/strict-0.5.1.cabal"
+    },
+    {
+      "file": "strict-0.5.1.tar.gz",
+      "from": "repository/strict-0.5.1.tar.gz"
+    },
+    {
+      "file": "tagged-0.8.11.tar.gz",
+      "from": "repository/tagged-0.8.11.tar.gz"
+    },
+    {
+      "file": "tasty-1.5.5.tar.gz",
+      "from": "repository/tasty-1.5.5.tar.gz"
+    },
+    {
+      "file": "terminal-size-0.3.4.cabal",
+      "from": "repository/terminal-size-0.3.4.cabal"
+    },
+    {
+      "file": "terminal-size-0.3.4.tar.gz",
+      "from": "repository/terminal-size-0.3.4.tar.gz"
+    },
+    {
+      "file": "text-iso8601-0.1.1.2.tar.gz",
+      "from": "repository/text-iso8601-0.1.1.2.tar.gz"
+    },
+    {
+      "file": "text-short-0.1.6.1.tar.gz",
+      "from": "repository/text-short-0.1.6.1.tar.gz"
+    },
+    {
+      "file": "th-abstraction-0.7.2.0.tar.gz",
+      "from": "repository/th-abstraction-0.7.2.0.tar.gz"
+    },
+    {
+      "file": "th-compat-0.1.7.tar.gz",
+      "from": "repository/th-compat-0.1.7.tar.gz"
+    },
+    {
+      "file": "these-1.2.1.cabal",
+      "from": "repository/these-1.2.1.cabal"
+    },
+    {
+      "file": "these-1.2.1.tar.gz",
+      "from": "repository/these-1.2.1.tar.gz"
+    },
+    {
+      "file": "time-compat-1.9.9.cabal",
+      "from": "repository/time-compat-1.9.9.cabal"
+    },
+    {
+      "file": "time-compat-1.9.9.tar.gz",
+      "from": "repository/time-compat-1.9.9.tar.gz"
+    },
+    {
+      "file": "transformers-compat-0.8.tar.gz",
+      "from": "repository/transformers-compat-0.8.tar.gz"
+    },
+    {
+      "file": "unordered-containers-0.2.21.cabal",
+      "from": "repository/unordered-containers-0.2.21.cabal"
+    },
+    {
+      "file": "unordered-containers-0.2.21.tar.gz",
+      "from": "repository/unordered-containers-0.2.21.tar.gz"
+    },
+    {
+      "file": "uuid-types-1.0.6.1.tar.gz",
+      "from": "repository/uuid-types-1.0.6.1.tar.gz"
+    },
+    {
+      "file": "vector-0.13.2.0.cabal",
+      "from": "repository/vector-0.13.2.0.cabal"
+    },
+    {
+      "file": "vector-0.13.2.0.tar.gz",
+      "from": "repository/vector-0.13.2.0.tar.gz"
+    },
+    {
+      "file": "vector-stream-0.1.0.1.cabal",
+      "from": "repository/vector-stream-0.1.0.1.cabal"
+    },
+    {
+      "file": "vector-stream-0.1.0.1.tar.gz",
+      "from": "repository/vector-stream-0.1.0.1.tar.gz"
+    },
+    {
+      "file": "witherable-0.5.cabal",
+      "from": "repository/witherable-0.5.cabal"
+    },
+    {
+      "file": "witherable-0.5.tar.gz",
+      "from": "repository/witherable-0.5.tar.gz"
+    }
+  ],
+  "systems": {
+    "aarch64-linux": {
+      "compiler": "ghc-9.10.3",
+      "units": [
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "Diff",
+          "version": "1.0.2"
+        },
+        {
+          "flags": {
+            "base-ge-4-15": true,
+            "base-ge-4-16": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "OneTuple",
+          "version": "0.4.3"
+        },
+        {
+          "flags": {
+            "old-random": false,
+            "templatehaskell": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "QuickCheck",
+          "version": "2.16.0.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": true,
+          "name": "ShellCheck",
+          "version": "0.11.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "StateVar",
+          "version": "1.2.2"
+        },
+        {
+          "flags": {
+            "ordered-keymap": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "aeson",
+          "version": "2.2.5.1"
+        },
+        {
+          "flags": {
+            "example": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "ansi-terminal",
+          "version": "1.1.5"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "ansi-terminal-types",
+          "version": "1.1.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "array",
+          "version": "0.5.8.0"
+        },
+        {
+          "flags": {
+            "tagged": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "assoc",
+          "version": "1.1.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "base",
+          "version": "4.20.2.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "base-orphans",
+          "version": "0.9.4"
+        },
+        {
+          "flags": {
+            "tagged": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "bifunctors",
+          "version": "5.6.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "binary",
+          "version": "0.8.9.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "bytestring",
+          "version": "0.12.2.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "character-ps",
+          "version": "0.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "colour",
+          "version": "2.3.7"
+        },
+        {
+          "flags": {
+            "containers": true,
+            "distributive": true,
+            "indexed-traversable": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "comonad",
+          "version": "5.0.10"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "containers",
+          "version": "0.7"
+        },
+        {
+          "flags": {
+            "statevar": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "contravariant",
+          "version": "1.5.6"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "data-fix",
+          "version": "0.3.4"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "deepseq",
+          "version": "1.5.0.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "directory",
+          "version": "1.3.8.5"
+        },
+        {
+          "flags": {
+            "tagged": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "distributive",
+          "version": "0.6.3"
+        },
+        {
+          "flags": {
+            "werror": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "dlist",
+          "version": "1.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "exceptions",
+          "version": "0.10.9"
+        },
+        {
+          "flags": {
+            "containers042": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "fgl",
+          "version": "5.8.3.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "filepath",
+          "version": "1.5.4.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-bignum",
+          "version": "1.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-boot-th",
+          "version": "9.10.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-internal",
+          "version": "9.1003.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-prim",
+          "version": "0.12.0"
+        },
+        {
+          "flags": {
+            "arch-native": false,
+            "random-initial-seed": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "hashable",
+          "version": "1.5.1.0"
+        },
+        {
+          "flags": {
+            "in-ghc-tree": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "hsc2hs",
+          "version": "0.68.10"
+        },
+        {
+          "flags": {
+            "base-ge-4-18": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "indexed-traversable",
+          "version": "0.1.5"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "indexed-traversable-instances",
+          "version": "0.1.2.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "integer-conversion",
+          "version": "0.1.1"
+        },
+        {
+          "flags": {
+            "check-bounds": false,
+            "integer-gmp": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "integer-logarithms",
+          "version": "1.0.5"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "mtl",
+          "version": "2.3.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "network-uri",
+          "version": "2.6.4.2"
+        },
+        {
+          "flags": {
+            "process": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "optparse-applicative",
+          "version": "0.19.0.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "os-string",
+          "version": "2.0.7"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "parsec",
+          "version": "3.1.18.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "pretty",
+          "version": "1.1.3.6"
+        },
+        {
+          "flags": {
+            "buildreadme": false,
+            "text": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "prettyprinter",
+          "version": "1.7.2"
+        },
+        {
+          "flags": {
+            "text": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "prettyprinter-ansi-terminal",
+          "version": "1.1.4"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "primitive",
+          "version": "0.9.1.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "process",
+          "version": "1.6.26.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "random",
+          "version": "1.3.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "regex-base",
+          "version": "0.94.0.3"
+        },
+        {
+          "flags": {
+            "doctest": true,
+            "force-o2": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "regex-tdfa",
+          "version": "1.3.2.7"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "rts",
+          "version": "1.0.2"
+        },
+        {
+          "flags": {
+            "integer-simple": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "scientific",
+          "version": "0.3.10.0"
+        },
+        {
+          "flags": {
+            "semigroupoids": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "semialign",
+          "version": "1.4"
+        },
+        {
+          "flags": {
+            "comonad": true,
+            "containers": true,
+            "contravariant": true,
+            "tagged": true,
+            "unordered-containers": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "semigroupoids",
+          "version": "6.0.2"
+        },
+        {
+          "flags": {
+            "optimised-mixer": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "splitmix",
+          "version": "0.1.3.2"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "stm",
+          "version": "2.5.3.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "strict",
+          "version": "0.5.1"
+        },
+        {
+          "flags": {
+            "deepseq": true,
+            "template-haskell": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "tagged",
+          "version": "0.8.11"
+        },
+        {
+          "flags": {
+            "terminal-size": true,
+            "unix": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "tasty",
+          "version": "1.5.5"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "template-haskell",
+          "version": "2.22.0.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "terminal-size",
+          "version": "0.3.4"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "text",
+          "version": "2.1.3"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "text-iso8601",
+          "version": "0.1.1.2"
+        },
+        {
+          "flags": {
+            "asserts": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "text-short",
+          "version": "0.1.6.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "th-abstraction",
+          "version": "0.7.2.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "th-compat",
+          "version": "0.1.7"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "these",
+          "version": "1.2.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "time",
+          "version": "1.12.2"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "time-compat",
+          "version": "1.9.9"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "transformers",
+          "version": "0.6.1.1"
+        },
+        {
+          "flags": {
+            "five": false,
+            "five-three": true,
+            "generic-deriving": true,
+            "mtl": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "transformers-compat",
+          "version": "0.8"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "unix",
+          "version": "2.8.7.0"
+        },
+        {
+          "flags": {
+            "debug": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "unordered-containers",
+          "version": "0.2.21"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "uuid-types",
+          "version": "1.0.6.1"
+        },
+        {
+          "flags": {
+            "boundschecks": true,
+            "internalchecks": false,
+            "unsafechecks": false,
+            "wall": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "vector",
+          "version": "0.13.2.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "vector-stream",
+          "version": "0.1.0.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "witherable",
+          "version": "0.5"
+        }
+      ]
+    },
+    "x86_64-linux": {
+      "compiler": "ghc-9.10.3",
+      "units": [
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "Diff",
+          "version": "1.0.2"
+        },
+        {
+          "flags": {
+            "base-ge-4-15": true,
+            "base-ge-4-16": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "OneTuple",
+          "version": "0.4.3"
+        },
+        {
+          "flags": {
+            "old-random": false,
+            "templatehaskell": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "QuickCheck",
+          "version": "2.16.0.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": true,
+          "name": "ShellCheck",
+          "version": "0.11.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "StateVar",
+          "version": "1.2.2"
+        },
+        {
+          "flags": {
+            "ordered-keymap": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "aeson",
+          "version": "2.2.5.1"
+        },
+        {
+          "flags": {
+            "example": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "ansi-terminal",
+          "version": "1.1.5"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "ansi-terminal-types",
+          "version": "1.1.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "array",
+          "version": "0.5.8.0"
+        },
+        {
+          "flags": {
+            "tagged": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "assoc",
+          "version": "1.1.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "base",
+          "version": "4.20.2.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "base-orphans",
+          "version": "0.9.4"
+        },
+        {
+          "flags": {
+            "tagged": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "bifunctors",
+          "version": "5.6.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "binary",
+          "version": "0.8.9.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "bytestring",
+          "version": "0.12.2.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "character-ps",
+          "version": "0.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "colour",
+          "version": "2.3.7"
+        },
+        {
+          "flags": {
+            "containers": true,
+            "distributive": true,
+            "indexed-traversable": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "comonad",
+          "version": "5.0.10"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "containers",
+          "version": "0.7"
+        },
+        {
+          "flags": {
+            "statevar": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "contravariant",
+          "version": "1.5.6"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "data-fix",
+          "version": "0.3.4"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "deepseq",
+          "version": "1.5.0.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "directory",
+          "version": "1.3.8.5"
+        },
+        {
+          "flags": {
+            "tagged": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "distributive",
+          "version": "0.6.3"
+        },
+        {
+          "flags": {
+            "werror": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "dlist",
+          "version": "1.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "exceptions",
+          "version": "0.10.9"
+        },
+        {
+          "flags": {
+            "containers042": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "fgl",
+          "version": "5.8.3.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "filepath",
+          "version": "1.5.4.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-bignum",
+          "version": "1.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-boot-th",
+          "version": "9.10.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-internal",
+          "version": "9.1003.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-prim",
+          "version": "0.12.0"
+        },
+        {
+          "flags": {
+            "arch-native": false,
+            "random-initial-seed": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "hashable",
+          "version": "1.5.1.0"
+        },
+        {
+          "flags": {
+            "in-ghc-tree": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "hsc2hs",
+          "version": "0.68.10"
+        },
+        {
+          "flags": {
+            "base-ge-4-18": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "indexed-traversable",
+          "version": "0.1.5"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "indexed-traversable-instances",
+          "version": "0.1.2.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "integer-conversion",
+          "version": "0.1.1"
+        },
+        {
+          "flags": {
+            "check-bounds": false,
+            "integer-gmp": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "integer-logarithms",
+          "version": "1.0.5"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "mtl",
+          "version": "2.3.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "network-uri",
+          "version": "2.6.4.2"
+        },
+        {
+          "flags": {
+            "process": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "optparse-applicative",
+          "version": "0.19.0.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "os-string",
+          "version": "2.0.7"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "parsec",
+          "version": "3.1.18.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "pretty",
+          "version": "1.1.3.6"
+        },
+        {
+          "flags": {
+            "buildreadme": false,
+            "text": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "prettyprinter",
+          "version": "1.7.2"
+        },
+        {
+          "flags": {
+            "text": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "prettyprinter-ansi-terminal",
+          "version": "1.1.4"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "primitive",
+          "version": "0.9.1.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "process",
+          "version": "1.6.26.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "random",
+          "version": "1.3.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "regex-base",
+          "version": "0.94.0.3"
+        },
+        {
+          "flags": {
+            "doctest": true,
+            "force-o2": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "regex-tdfa",
+          "version": "1.3.2.7"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "rts",
+          "version": "1.0.2"
+        },
+        {
+          "flags": {
+            "integer-simple": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "scientific",
+          "version": "0.3.10.0"
+        },
+        {
+          "flags": {
+            "semigroupoids": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "semialign",
+          "version": "1.4"
+        },
+        {
+          "flags": {
+            "comonad": true,
+            "containers": true,
+            "contravariant": true,
+            "tagged": true,
+            "unordered-containers": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "semigroupoids",
+          "version": "6.0.2"
+        },
+        {
+          "flags": {
+            "optimised-mixer": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "splitmix",
+          "version": "0.1.3.2"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "stm",
+          "version": "2.5.3.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "strict",
+          "version": "0.5.1"
+        },
+        {
+          "flags": {
+            "deepseq": true,
+            "template-haskell": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "tagged",
+          "version": "0.8.11"
+        },
+        {
+          "flags": {
+            "terminal-size": true,
+            "unix": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "tasty",
+          "version": "1.5.5"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "template-haskell",
+          "version": "2.22.0.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "terminal-size",
+          "version": "0.3.4"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "text",
+          "version": "2.1.3"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "text-iso8601",
+          "version": "0.1.1.2"
+        },
+        {
+          "flags": {
+            "asserts": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "text-short",
+          "version": "0.1.6.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "th-abstraction",
+          "version": "0.7.2.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "th-compat",
+          "version": "0.1.7"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "these",
+          "version": "1.2.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "time",
+          "version": "1.12.2"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "time-compat",
+          "version": "1.9.9"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "transformers",
+          "version": "0.6.1.1"
+        },
+        {
+          "flags": {
+            "five": false,
+            "five-three": true,
+            "generic-deriving": true,
+            "mtl": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "transformers-compat",
+          "version": "0.8"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "unix",
+          "version": "2.8.7.0"
+        },
+        {
+          "flags": {
+            "debug": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "unordered-containers",
+          "version": "0.2.21"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "uuid-types",
+          "version": "1.0.6.1"
+        },
+        {
+          "flags": {
+            "boundschecks": true,
+            "internalchecks": false,
+            "unsafechecks": false,
+            "wall": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "vector",
+          "version": "0.13.2.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "vector-stream",
+          "version": "0.1.0.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "witherable",
+          "version": "0.5"
+        }
+      ]
+    }
+  },
+  "version": 1
+}

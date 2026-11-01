@@ -13,9 +13,11 @@ set -euo pipefail
 
 root=$(pwd)
 cli=$(nix build "$root#cli" --no-link --print-out-paths)/bin/cabal-purifier
-hls=$(nix build 'nixpkgs#haskell-language-server' --no-link --print-out-paths)/bin
-# The language server, like a developer's shell, finds GHC on PATH.
-ghc=$(nix build 'nixpkgs#ghc' --no-link --print-out-paths)/bin
+# The language server, like a developer's shell, finds GHC on PATH. Both
+# come from the nixpkgs the flake locks, whose GHC the fixtures' locks
+# name, and they go first, since a CI image can bring its own GHC.
+hls=$(nix build --inputs-from "$root" 'nixpkgs#haskell-language-server' --no-link --print-out-paths)/bin
+ghc=$(nix build --inputs-from "$root" 'nixpkgs#ghc' --no-link --print-out-paths)/bin
 export PATH="$ghc:$PATH"
 work=$(mktemp -d)
 trap 'chmod -R u+w "$work"; rm -rf "$work"' EXIT

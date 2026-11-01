@@ -18,6 +18,12 @@ cli=$(nix build "$root#cli" --no-link --print-out-paths)/bin/cabal-purifier
 hg_bin=$(nix build 'nixpkgs#mercurial^out' --no-link --print-out-paths)/bin
 darcs_bin=$(nix build 'nixpkgs#darcs^out' --no-link --print-out-paths)/bin
 export PATH="$hg_bin:$darcs_bin:$PATH"
+# The lock run plans with the first GHC and cabal on PATH, and a CI image
+# can bring its own, so the test puts the ones the flake locks first.
+for tool in $(nix build --inputs-from "$root" 'nixpkgs#ghc' 'nixpkgs#cabal-install' --no-link --print-out-paths); do
+  PATH="$tool/bin:$PATH"
+done
+export PATH
 work=$(mktemp -d)
 trap 'kill ${hg_server:-} ${http_server:-} 2>/dev/null || true; rm -rf "$work"' EXIT
 
@@ -129,7 +135,12 @@ assert any(d["rev"] is None and d["context"] for d in darcs), darcs
 EOF
 
 echo "== building the project with Nix"
-built=$(nix-build --no-out-link "$root/tests/build.nix" --argstr src "$work/project")
+# The build takes the nixpkgs and the purifier library that the flake locks.
+sources="$root#lib.caisson.libManifest.sources"
+nixpkgs=$(nix eval --raw "$sources.nixpkgs.outPath")
+purifier=$(nix eval --raw "$sources.purifier.outPath")
+built=$(nix-build --no-out-link "$root/tests/build.nix" --argstr src "$work/project" \
+  --argstr nixpkgs "$nixpkgs" --argstr purifier "$purifier")
 output=$("$built/bin/vcs")
 echo "$output"
 [ "$output" = "mercurial, a darcs tag, a darcs context" ] || fail "the project printed $output"

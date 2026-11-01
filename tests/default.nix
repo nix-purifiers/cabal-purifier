@@ -5,10 +5,16 @@
 # fixture's cabal-purifier.lock.json is written by `cabal-purifier lock` in
 # the fixture's directory. tests/interactive.sh covers what runs outside
 # the sandbox: the lock run, `cabal` and `publish`.
+#
+# The real-world checks build a pinned upstream project from a lockfile
+# under real-world/, which `cabal-purifier lock` wrote in a checkout of
+# that project.
 {
   pkgs,
   overlay,
   cli,
+  # The source of ShellCheck v0.11.0 (tests/dependencies/flake.nix).
+  shellcheck,
 }:
 let
   purified = pkgs.extend overlay;
@@ -40,6 +46,13 @@ let
   };
   greeting = workspace.packages.greeting;
 
+  shellcheckProject = purified.buildCabalProject {
+    src = shellcheck;
+    lockFile = ./real-world/shellcheck/cabal-purifier.lock.json;
+    name = "shellcheck";
+  };
+  shellcheckPackage = shellcheckProject.packages.ShellCheck;
+
   # The negative checks: the app fixture with a lockfile changed the ways
   # a stale or damaged lockfile is wrong. Each must fail to evaluate, with
   # the library's message, before anything builds.
@@ -70,10 +83,14 @@ in
   unit =
     purified.runCommand "unit-tests"
       {
-        nativeBuildInputs = [ purified.python3 ];
+        nativeBuildInputs = [
+          purified.python3
+          purified.darcs
+        ];
         CABAL_PURIFIER_ROOT = ../.;
       }
       ''
+        export HOME="$TMPDIR"
         python3 -m unittest discover -v -s ${./unit}
         touch "$out"
       '';
@@ -144,6 +161,30 @@ in
   negative-unknown-system = evaluationFails "negative-unknown-system" (
     withLock "unknown-system" appLock { system = "riscv64-linux"; }
   );
+
+  # ShellCheck v0.11.0, built against the 70 downloads its lockfile
+  # records, reports its version and finds the unquoted expansion
+  # (SC2086) in a script.
+  real-world-shellcheck =
+    purified.runCommand "real-world-shellcheck"
+      {
+        shellcheck = "${shellcheckPackage.executables.shellcheck}/bin/shellcheck";
+      }
+      ''
+        "$shellcheck" --version | tee version
+        grep -qx 'version: 0.11.0' version
+        printf '#!/bin/sh\necho $1\n' > script.sh
+        if "$shellcheck" script.sh > report; then
+          echo "real-world-shellcheck: shellcheck found nothing in script.sh" >&2
+          exit 1
+        fi
+        cat report
+        grep -q SC2086 report
+        touch "$out"
+      '';
+
+  # ShellCheck's own test suite.
+  real-world-shellcheck-test = shellcheckPackage.testSuites.test-shellcheck;
 
   # The documentation tarball for Hackage holds the module's page.
   fixture-workspace-docs =

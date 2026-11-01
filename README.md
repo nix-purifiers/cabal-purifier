@@ -267,6 +267,15 @@ This builds `packages.my-lib.sdist` (or `.docs`) and uploads the file with
 to `cabal upload`, so `--publish` publishes the release, and credentials
 work as they do for `cabal upload`.
 
+## Projects tried
+
+- **[ShellCheck](https://github.com/koalaman/shellcheck) v0.11.0**, a
+  single package with no `cabal.project`, a library, the `shellcheck`
+  executable and a test suite. `cabal-purifier lock` in a checkout of the
+  release records 70 downloads. The flake's checks build it in the sandbox
+  from that lockfile (`tests/real-world/shellcheck`), run `shellcheck` on
+  a script, and run ShellCheck's own test suite.
+
 ## Limits
 
 - **Libraries outside Cabal.** A `.cabal` file names system libraries
@@ -301,7 +310,9 @@ under `tests/fixtures` in the sandbox and runs each: an app on Hackage
 packages, one of them with a Hackage revision, and a workspace with a
 library, its test suite and benchmark, an executable, a git source
 repository, a package URL and a local package outside the project. The
-checks also inspect the source and documentation tarballs. Negative
+checks also inspect the source and documentation tarballs, and build
+ShellCheck v0.11.0, pinned in `tests/dependencies/flake.nix`, from its
+lockfile under `tests/real-world`. Negative
 checks give the builder a stale lockfile, one with a missing download,
 one whose plan names a package no source provides, and a system the lock
 has no plan for, and each must fail.

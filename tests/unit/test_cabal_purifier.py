@@ -12,6 +12,8 @@ import importlib.util
 import io
 import json
 import os
+import shutil
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -320,6 +322,40 @@ class CheckPlanTest(unittest.TestCase):
     def test_other_flags(self):
         plan = [dict(self.PLAN[0], flags={"f": False})] + self.PLAN[1:]
         self.assertEqual(self.run_check(plan, self.LOCK)[0], 1)
+
+
+@unittest.skipUnless(shutil.which("darcs"), "needs darcs")
+class DarcsContextTest(unittest.TestCase):
+    """Cabal names a checkout after the repository, so the lock run finds
+    the Darcs checkout of a source by the location it was cloned from."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.origin = self.tmp / "origin"
+        self.origin.mkdir()
+        (self.origin / "A.hs").write_text("module A where\n")
+        subprocess.run(["darcs", "init", "-q", "--repodir", str(self.origin)], check=True)
+        subprocess.run(
+            ["darcs", "record", "--repodir", str(self.origin), "-q", "-a", "-l", "-A", "tester", "-m", "init"],
+            check=True,
+        )
+        self.src = self.tmp / "src"
+        self.src.mkdir()
+        (self.src / "other-1234").mkdir()
+        subprocess.run(["darcs", "clone", "-q", str(self.origin), str(self.src / "origin-5678")], check=True)
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def test_finds_the_checkout_of_the_location(self):
+        checkouts = sorted(self.src.iterdir())
+        context = cli.darcs_context(checkouts, str(self.origin))
+        self.assertIn("init", context)
+
+    def test_other_location_is_refused(self):
+        checkouts = sorted(self.src.iterdir())
+        with self.assertRaises(cli.Failure):
+            cli.darcs_context(checkouts, str(self.tmp / "elsewhere"))
 
 
 if __name__ == "__main__":

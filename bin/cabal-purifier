@@ -293,18 +293,25 @@ def source_path(kind, *parts):
     return f"source/{kind}-{digest}"
 
 
-def darcs_context(checkouts):
-    """The Darcs context of the checkout Cabal made in the lock run, which
-    names the repository's state when the source names no tag."""
+def darcs_context(checkouts, location):
+    """The Darcs context of the checkout Cabal made of `location` in the
+    lock run, which names the repository's state when the source names no
+    tag. Darcs records the location a checkout was cloned from in
+    _darcs/prefs/defaultrepo."""
     for checkout in checkouts:
-        if (checkout / "_darcs").is_dir():
+        defaultrepo = checkout / "_darcs" / "prefs" / "defaultrepo"
+        if defaultrepo.is_file() and defaultrepo.read_text().strip().rstrip("/") == location.rstrip("/"):
             return run(["darcs", "log", "--context", "--repodir", checkout], capture=True)
-    raise Failure("found no Darcs checkout of the lock run to take the context from")
+    found = ", ".join(c.name for c in checkouts) or "none"
+    raise Failure(
+        f"found no Darcs checkout of {location} in the lock run to take the context from "
+        f"(the checkouts: {found})"
+    )
 
 
 def lock_source_repository(repo, name, version, checkouts):
     """The download and the packing of a `source-repository-package`.
-    `checkouts` are the directories where Cabal checked out the package's
+    `checkouts` are the directories where Cabal checked out the project's
     source repositories in the lock run."""
     kind = repo["type"]
     location = repo["location"]
@@ -341,7 +348,7 @@ def lock_source_repository(repo, name, version, checkouts):
             "hash": nix_fetcher_hash(expr),
         }
     elif kind == "darcs":
-        context = None if tag else darcs_context(checkouts)
+        context = None if tag else darcs_context(checkouts, location)
         pin = (
             f"rev = {json.dumps(tag)};"
             if tag
@@ -553,7 +560,11 @@ def make_lock(root, configuration, previous_index_state, update):
                     else:
                         raise Failure(f"{pid} comes from a repository of type {repo['type']}")
                 elif kind == "source-repo":
-                    checkouts = sorted((tmp / f"dist-{system}" / "src").glob(f"{name}-*"))
+                    # Cabal names a checkout after the repository rather
+                    # than the package, so each is a candidate.
+                    checkouts = sorted(
+                        p for p in (tmp / f"dist-{system}" / "src").glob("*") if p.is_dir()
+                    )
                     download, pack = lock_source_repository(
                         src["source-repo"], name, version, checkouts
                     )

@@ -21,6 +21,12 @@ set -euo pipefail
 
 root=$(pwd)
 cli=$(nix build "$root#cli" --no-link --print-out-paths)/bin/cabal-purifier
+# The lock run plans with the first GHC and cabal on PATH, and a CI image
+# can bring its own, so the test puts the ones the flake locks first.
+for tool in $(nix build --inputs-from "$root" 'nixpkgs#ghc' 'nixpkgs#cabal-install' --no-link --print-out-paths); do
+  PATH="$tool/bin:$PATH"
+done
+export PATH
 work=$(mktemp -d)
 trap 'kill "${server:-}" 2>/dev/null || true; chmod -R u+w "$work"; rm -rf "$work"' EXIT
 cp -r "$root/tests/fixtures" "$work/fixtures"

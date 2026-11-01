@@ -112,7 +112,25 @@
         "caisson": "caisson",
         "flake-parts": "flake-parts_2",
         "nixpkgs": "nixpkgs",
+        "shellcheck": "shellcheck",
         "treefmt-nix": "treefmt-nix"
+      }
+    },
+    "shellcheck": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1754263151,
+        "narHash": "sha256-41bVsMyX6NU0AHnl9phmGxIQxH+D97qmqbfD1LemnNU=",
+        "owner": "koalaman",
+        "repo": "shellcheck",
+        "rev": "aac0823e6b58f8a499e856e93738082691cbf212",
+        "type": "github"
+      },
+      "original": {
+        "owner": "koalaman",
+        "repo": "shellcheck",
+        "rev": "aac0823e6b58f8a499e856e93738082691cbf212",
+        "type": "github"
       }
     },
     "treefmt-nix": {
