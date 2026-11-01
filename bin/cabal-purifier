@@ -3,21 +3,28 @@
 """cabal-purifier: locks what a Cabal project downloads, so that Nix can
 build it offline.
 
-  cabal-purifier lock [--update] [--no-tests] [--no-benchmarks]
-      Writes cabal-purifier.lock.json at the project root, when the
-      project's Cabal files changed since the last lock. The plan uses the
-      package index as of the last lock; --update takes the newest index.
-  cabal-purifier relock [--update] [--no-tests] [--no-benchmarks]
-      Writes the lockfile regardless.
-  cabal-purifier cabal ARGS...
-      Runs cabal offline on the locked sources, which Nix fetches.
-  cabal-purifier env
-      Prints the PATH export that puts a `cabal` shim first, so that every
-      cabal command, the language server's included, runs offline:
-      `eval "$(cabal-purifier env)"`.
+  cabal-purifier lock [--no-tests] [--no-benchmarks]
+      Writes the lockfile for Cabal's resolution as it is: the plan uses
+      the package index as of the last lock, and cabal.project.freeze as
+      it is.
+  cabal-purifier update [PACKAGE...] [--no-tests] [--no-benchmarks]
+      Re-resolves the named packages, or every package, with the newest
+      package index, writes cabal.project.freeze again when the project
+      has one, and writes the lockfile.
+  cabal-purifier prefetch
+      Realizes the locked sources, GHC, cabal-install and
+      haskell-language-server in the Nix store, keeps them alive with a GC
+      root beside the lockfile, and prints the PATH export that puts a
+      `cabal` shim first: `eval "$(cabal-purifier prefetch)"`. Every cabal
+      command, the language server's included, then runs offline on the
+      locked sources.
   cabal-purifier publish PACKAGE [--documentation] [UPLOAD-ARGS...]
-      Builds the package's source tarball (or documentation) with Nix and
-      uploads that file with `cabal upload`.
+      Builds the project's release (or the package's documentation) with
+      Nix and uploads the package's tarball with `cabal upload`.
+
+Every command takes --lockfile PATH, or the environment variable
+CABAL_PURIFIER_LOCKFILE, for a lockfile outside the project; the default
+is cabal-purifier.lock.json at the project root.
 
 The command reads these environment variables, which its Nix package sets:
 CABAL_PURIFIER_LIB (the directory of its Nix library),
@@ -41,7 +48,7 @@ import tempfile
 from pathlib import Path
 
 LOCK_NAME = "cabal-purifier.lock.json"
-LOCK_VERSION = 1
+LOCK_VERSION = 2
 PROJECT_FILES = ("cabal.project", "cabal.project.freeze", "cabal.project.local")
 
 # Each Nix system the lock plans for, with the target strings that GHC's
@@ -196,7 +203,7 @@ def configuration_flags(configuration):
     ]
 
 
-def plan(root, env, compiler, builddir, configuration, project_args=()):
+def plan(root, env, compiler, builddir, configuration, project_args=(), constraints=()):
     run(
         [
             "cabal",
@@ -207,6 +214,7 @@ def plan(root, env, compiler, builddir, configuration, project_args=()):
             f"--with-compiler={compiler}",
             f"--builddir={builddir}",
             *configuration_flags(configuration),
+            *(f"--constraint={c}" for c in constraints),
         ],
         cwd=root,
         env=env,
@@ -252,13 +260,77 @@ def cache_dir():
     return Path(base) / "cabal-purifier"
 
 
+FREEZE = "cabal.project.freeze"
+
+
+def constraint_package(constraint):
+    """The package a constraint of a freeze file is about: `any.async ==2.2.4`
+    and `async -bench` are both about async."""
+    word = constraint.split()[0] if constraint.split() else ""
+    return word.rsplit(".", 1)[-1] if word.startswith("any.") else word
+
+
+def freeze_without(text, packages):
+    """A freeze file without its index-state and without the constraints of
+    `packages`, so that `cabal freeze` resolves those again."""
+    fields, current = [], None
+    for line in text.splitlines():
+        if line and not line[0].isspace() and ":" in line:
+            current = [line]
+            fields.append(current)
+        elif current is not None:
+            current.append(line)
+    kept = []
+    for field in fields:
+        name, _, value = "\n".join(field).partition(":")
+        name = name.strip()
+        if name == "index-state":
+            continue
+        if name == "constraints":
+            entries = [c.strip() for c in value.split(",") if c.strip()]
+            entries = [c for c in entries if constraint_package(c) not in packages]
+            if entries:
+                kept.append("constraints: " + ",\n             ".join(entries))
+            continue
+        kept.append("\n".join(field))
+    return "\n".join(kept) + "\n"
+
+
+def refresh_resolution(root, env, ghc, latest, packages, previous_plans):
+    """What `update` changes before the lock: Cabal's own resolution, re-
+    resolved with the newest index (`latest`) for `packages`, or for every
+    package when `packages` is empty.
+
+    With a freeze file, Cabal's lockfile, the named packages' constraints
+    (or the whole file) go, and `cabal freeze` writes it again. Without
+    one, the other packages keep their versions and flags through
+    constraints from the previous lock's plans, returned per system."""
+    freeze = root / FREEZE
+    if freeze.exists():
+        if packages:
+            freeze.write_text(freeze_without(freeze.read_text(), set(packages)))
+        else:
+            freeze.unlink()
+        say(f"writing {FREEZE} again with the newest package index")
+        index_args = [f"--index-state={latest}"] if latest else []
+        run(["cabal", "freeze", f"--with-compiler={ghc}", *index_args], cwd=root, env=env)
+        return {}
+    if not packages:
+        return {}
+    named = set(packages)
+    return {
+        system: constraints_of([u for u in plan_["units"] if u["name"] not in named and not u["local"]])
+        for system, plan_ in previous_plans.items()
+    }
+
+
+def project_index_state_in(path):
+    return path.exists() and re.search(r"^index-state\s*:", path.read_text(), re.MULTILINE) is not None
+
+
 def project_index_state(root):
     """Whether the project's own files pin the package index."""
-    for file in PROJECT_FILES:
-        path = root / file
-        if path.exists() and re.search(r"^index-state\s*:", path.read_text(), re.MULTILINE):
-            return True
-    return False
+    return any(project_index_state_in(root / file) for file in PROJECT_FILES)
 
 
 def prefetch_git(url, rev):
@@ -431,14 +503,17 @@ def definition_files(root, local_dirs):
     return {f: sri_of_file(root / f) for f in sorted(set(files))}
 
 
-def make_lock(root, configuration, previous_index_state, update):
+def make_lock(root, configuration, previous_index_state, refresh=None, previous_plans=None):
     """Plans the project for every system and returns the lockfile.
 
     The lock run's Cabal directory is empty apart from the package index,
     which it keeps under ~/.cache/cabal-purifier between runs: Cabal
     updates an index it already has in place. The index is not a download
-    of the plan. The plan names the index state the lock records, which a
-    relock reuses unless `update` is set or the project pins its own."""
+    of the plan. The plan names the index state the lock records, which
+    the next lock reuses unless the project pins its own.
+
+    `refresh` is for `update`: the packages to re-resolve with the newest
+    index, or [] for all of them (refresh_resolution)."""
     with tempfile.TemporaryDirectory(prefix="cabal-purifier-") as tmp:
         tmp = Path(tmp)
         repo_cache = cache_dir() / "packages"
@@ -465,15 +540,18 @@ def make_lock(root, configuration, previous_index_state, update):
         updated = run(["cabal", "update"], cwd=root, env=env, capture=True)
         sys.stderr.write(updated)
         latest = re.findall(r"index-state is set to (\S+?)\.?$", updated, re.MULTILINE)
+        latest = latest[-1] if latest else None
+        ghc = find_compiler(root)
+        pins = {}
+        if refresh is not None:
+            pins = refresh_resolution(root, env, ghc, latest, refresh, previous_plans or {})
         if project_index_state(root):
             index_state = None
-        elif previous_index_state and not update:
+        elif previous_index_state and refresh is None:
             index_state = previous_index_state
         else:
-            index_state = latest[-1] if latest else None
+            index_state = latest
         index_args = [f"--index-state={index_state}"] if index_state else []
-        ghc = find_compiler(root)
-        cabal_version = run(["cabal", "--numeric-version"], capture=True).strip()
 
         plans = {}
         for system in SYSTEMS:
@@ -486,12 +564,13 @@ def make_lock(root, configuration, previous_index_state, update):
                     tmp / f"dist-{system}",
                     configuration,
                     index_args,
+                    pins.get(system, ()),
                 )
             except Failure as error:
                 hint = (
                     f" The plan uses the package index as of {index_state}, which the last "
                     "lock recorded; a dependency newer than that needs "
-                    "`cabal-purifier lock --update`, which takes the newest index."
+                    "`cabal-purifier update`, which takes the newest index."
                     if index_state and index_state == previous_index_state
                     else ""
                 )
@@ -594,11 +673,10 @@ def make_lock(root, configuration, previous_index_state, update):
                 "hash": sri_from_hex(unit["pkg-src-sha256"]),
             }
             downloads[tarball["path"]] = tarball
-            repository[f"{pid}.tar.gz"] = {"file": f"{pid}.tar.gz", "from": tarball["path"]}
             if (name, version) not in revisions:
                 raise Failure(
                     f"no package index holds the description of {pid} that the plan used; "
-                    "run `cabal-purifier relock --update`"
+                    "run `cabal-purifier lock --update`"
                 )
             revision = revisions[(name, version)]
             if revision > 0:
@@ -609,12 +687,10 @@ def make_lock(root, configuration, previous_index_state, update):
                     "hash": sri_from_hex(unit["pkg-cabal-sha256"]),
                 }
                 downloads[description["path"]] = description
-                repository[f"{pid}.cabal"] = {"file": f"{pid}.cabal", "from": description["path"]}
 
         local_dirs = sorted({o["dir"] for o in outputs.values()})
-        return {
+        lock = {
             "version": LOCK_VERSION,
-            "cabalInstall": cabal_version,
             "configuration": configuration,
             "indexState": index_state,
             "definition": definition_files(root, local_dirs),
@@ -625,6 +701,17 @@ def make_lock(root, configuration, previous_index_state, update):
             "systems": systems,
             "outputs": {"packages": {n: outputs[n] for n in sorted(outputs)}},
         }
+        lock["hash"] = content_hash(lock)
+        return lock
+
+
+def content_hash(lock):
+    """The SRI SHA-256 of the lockfile without its `hash`, in the JSON that
+    Nix's builtins.toJSON writes: keys sorted and no spaces. lock.nix
+    computes the same hash."""
+    body = {k: v for k, v in lock.items() if k != "hash"}
+    text = json.dumps(body, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return sri_from_hex(hashlib.sha256(text.encode()).hexdigest())
 
 
 # --------------------------------------------------------------------------
@@ -654,6 +741,9 @@ def realize(root, lock_path, out_link):
                 "src",
                 root.resolve(),
                 "--argstr",
+                "system",
+                host_system(),
+                "--argstr",
                 "nixpkgs",
                 NIXPKGS,
                 "--argstr",
@@ -667,8 +757,8 @@ def realize(root, lock_path, out_link):
     except Failure as error:
         raise Failure(
             "Nix could not fetch the locked sources (its error is above). A hash mismatch means "
-            f"a download no longer matches {LOCK_NAME}: the lockfile was edited, or a source "
-            "changed upstream. Run `cabal-purifier relock` to lock the sources as they are now."
+            "a download no longer matches the lockfile: the lockfile was edited, or a source "
+            "changed upstream. Run `cabal-purifier lock` to lock the sources as they are now."
         ) from error
     return Path(out.strip().splitlines()[-1])
 
@@ -709,7 +799,7 @@ def offline_setup(root, lock, sources, work):
     remote = json.loads((sources / "remote.json").read_text())
     system = host_system()
     if system not in lock["systems"]:
-        raise Failure(f"the lockfile has no plan for {system}; run `cabal-purifier relock`")
+        raise Failure(f"the lockfile has no plan for {system}; run `cabal-purifier lock`")
     project = offline_project().write(
         root, work / "project", remote, constraints_of(lock["systems"][system]["units"])
     )
@@ -756,10 +846,11 @@ def lock_problems(lock):
     Nix library makes the same checks (lock.nix)."""
     problems = []
     downloads = {d.get("path") for d in lock.get("downloads", [])}
-    files = set()
+    # A download at repository/<file> is that file of the repository.
+    files = {p.removeprefix("repository/") for p in downloads if p and p.startswith("repository/")}
     for entry in lock.get("repository", []):
         files.add(entry.get("file"))
-        source = entry.get("from") or (entry.get("pack") or {}).get("from")
+        source = (entry.get("pack") or {}).get("from")
         if source is not None and source not in downloads:
             problems.append(f"the repository file {entry.get('file')} names no download {source}")
     remote = set()
@@ -777,34 +868,49 @@ def lock_problems(lock):
     return problems
 
 
-def read_lock(root):
-    path = root / LOCK_NAME
+SECTIONS = (
+    "version",
+    "hash",
+    "configuration",
+    "definition",
+    "downloads",
+    "repository",
+    "remotePackages",
+    "externalPaths",
+    "systems",
+    "outputs",
+)
+
+
+def read_lock(path):
+    """The lockfile at `path`, after the checks that lock.nix makes too."""
     if not path.exists():
-        raise Failure(f"there is no {LOCK_NAME}; run `cabal-purifier lock`")
+        raise Failure(f"there is no {path}; run `cabal-purifier lock`")
     try:
         with open(path) as f:
             lock = json.load(f)
     except json.JSONDecodeError as error:
         raise Failure(
-            f"{LOCK_NAME} is not valid JSON ({error.msg} at line {error.lineno}). Run "
-            "`cabal-purifier relock` to write it again."
+            f"{path} is not valid JSON ({error.msg} at line {error.lineno}). Run "
+            "`cabal-purifier lock` to write it again."
         ) from error
-    if not isinstance(lock, dict) or lock.get("version") != LOCK_VERSION:
-        version = lock.get("version") if isinstance(lock, dict) else None
+    if not isinstance(lock, dict):
+        raise Failure(f"{path} is damaged: it is not a JSON object. Run `cabal-purifier lock` to write it again.")
+    if lock.get("version") != LOCK_VERSION:
         raise Failure(
-            f"{LOCK_NAME} has lock format version {version}; this command writes "
-            f"version {LOCK_VERSION}. Run `cabal-purifier relock`."
+            f"{path} has lock format version {lock.get('version')}; this command writes "
+            f"version {LOCK_VERSION}. Run `cabal-purifier lock`."
         )
-    missing = [
-        key
-        for key in ("configuration", "definition", "downloads", "repository", "systems", "outputs")
-        if key not in lock
-    ]
-    problems = [f"it has no {key}" for key in missing] or lock_problems(lock)
+    missing = [key for key in SECTIONS if key not in lock]
+    if missing:
+        problems = [f"it has no {', '.join(missing)}"]
+    elif lock["hash"] != content_hash(lock):
+        problems = ["its content does not match its hash, so it was changed after `cabal-purifier lock` wrote it"]
+    else:
+        problems = lock_problems(lock)
     if problems:
         raise Failure(
-            f"{LOCK_NAME} is damaged: " + "; ".join(problems) + ". Run `cabal-purifier relock` "
-            "to write it again."
+            f"{path} is damaged: " + "; ".join(problems) + ". Run `cabal-purifier lock` to write it again."
         )
     return lock
 
@@ -819,66 +925,158 @@ def stale_files(root, lock):
 
 
 def parse_lock_options(args):
+    """The plan's configuration, and the arguments that are not options."""
     configuration = {"tests": True, "benchmarks": True}
-    update = False
+    rest = []
     for arg in args:
         if arg == "--no-tests":
             configuration["tests"] = False
         elif arg == "--no-benchmarks":
             configuration["benchmarks"] = False
-        elif arg == "--update":
-            update = True
-        else:
+        elif arg.startswith("-"):
             raise Failure(f"unknown option {arg}; see `cabal-purifier --help`")
-    return configuration, update
+        else:
+            rest.append(arg)
+    return configuration, rest
 
 
-def verb_lock(args, force):
-    root = project_root()
-    configuration, update = parse_lock_options(args)
-    path = root / LOCK_NAME
-    previous = None
-    if path.exists():
-        try:
-            previous = read_lock(root)
-        except Failure:
-            previous = None
-    if (
-        previous is not None
-        and not force
-        and not update
-        and previous["configuration"] == configuration
-        and not stale_files(root, previous)
-    ):
-        say(f"{LOCK_NAME} is up to date; `cabal-purifier relock` relocks regardless")
-        return
-    previous_index_state = previous.get("indexState") if previous else None
-    lock = make_lock(root, configuration, previous_index_state, update)
+def lockfile_path(root, option):
+    """The purifier lockfile: `--lockfile`, then CABAL_PURIFIER_LOCKFILE,
+    then cabal-purifier.lock.json at the project root."""
+    given = option or os.environ.get("CABAL_PURIFIER_LOCKFILE")
+    return Path(given).resolve() if given else root / LOCK_NAME
+
+
+def previous_lock(path):
+    """The last lockfile as JSON, even one of an older format or one that no
+    longer passes the checks: `lock` takes its index state, and `update`
+    its plans."""
+    try:
+        previous = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return {}
+    return previous if isinstance(previous, dict) else {}
+
+
+def verb_lock(root, path, args):
+    """Locks Cabal's resolution as it is: the plan uses the package index as
+    of the last lock, and the freeze file as it is."""
+    configuration, rest = parse_lock_options(args)
+    if rest:
+        raise Failure(f"`cabal-purifier lock` takes no packages; `cabal-purifier update {' '.join(rest)}` re-resolves them")
+    index_state = previous_lock(path).get("indexState")
+    write_lock(root, path, make_lock(root, configuration, index_state if isinstance(index_state, str) else None))
+
+
+def verb_update(root, path, args):
+    """Re-resolves the named packages, or every package, with the newest
+    package index, writes the freeze file again when the project has one,
+    and locks the result."""
+    configuration, packages = parse_lock_options(args)
+    previous = previous_lock(path)
+    plans = previous.get("systems") if isinstance(previous.get("systems"), dict) else {}
+    if packages and not plans and not (root / FREEZE).exists():
+        raise Failure("there is no lock to keep the other packages from; run `cabal-purifier update` for every package")
+    pinned = [f for f in PROJECT_FILES if f != FREEZE and project_index_state_in(root / f)]
+    if pinned:
+        say(f"{', '.join(pinned)} pins index-state, so the update resolves with the index as of that state")
+    write_lock(root, path, make_lock(root, configuration, None, refresh=packages, previous_plans=plans))
+
+
+def write_lock(root, path, lock):
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(lock, indent=2, sort_keys=True) + "\n")
     say(
-        f"wrote {LOCK_NAME}: {len(lock['downloads'])} downloads, "
+        f"wrote {path}: {len(lock['downloads'])} downloads, "
         f"{len(lock['outputs']['packages'])} project packages"
     )
     check_lock(root, path, lock)
     say("the lock resolves offline to the locked plan")
 
 
-def verb_cabal(args):
-    root = project_root()
-    lock = read_lock(root)
+def read_current_lock(root, path):
+    """The lockfile, which must be as new as the project's Cabal files."""
+    lock = read_lock(path)
     stale = stale_files(root, lock)
     if stale:
-        say(
-            f"{', '.join(stale)} changed since the lock; running cabal the usual way until "
-            "`cabal-purifier lock` renews it"
+        raise Failure(
+            f"{', '.join(stale)} changed since the lock, so the lock may lack downloads the "
+            "project now needs. Run `cabal-purifier lock`."
         )
-        cabal = real_cabal(root)
-        os.execv(cabal, [cabal, *args])
-    work = root / "dist-newstyle" / "cabal-purifier"
-    sources = realize(root, root / LOCK_NAME, work / "sources")
+    return lock
+
+
+def work_dir(root):
+    return root / "dist-newstyle" / "cabal-purifier"
+
+
+def prefetch_root(path):
+    """The GC root of `prefetch`, beside the lockfile: for
+    cabal-purifier.lock.json, cabal-purifier.lock.prefetch."""
+    return path.with_name(path.name.removesuffix(".json") + ".prefetch")
+
+
+def verb_prefetch(root, path, args):
+    """Realizes the locked sources and the toolchain for this system, keeps
+    them alive with a GC root beside the lockfile, and writes the `cabal`
+    shim. Prints the PATH export that puts the shim and the toolchain
+    first: every cabal command, the language server's included, then runs
+    offline on the locked sources."""
+    if args:
+        raise Failure("`cabal-purifier prefetch` takes no arguments but --lockfile")
+    read_current_lock(root, path)
+    say("realizing the locked sources and the toolchain")
+    out = run(
+        [
+            "nix-build",
+            LIB / "prefetch.nix",
+            "--argstr",
+            "lockFile",
+            path,
+            "--argstr",
+            "src",
+            root.resolve(),
+            "--argstr",
+            "system",
+            host_system(),
+            "--argstr",
+            "nixpkgs",
+            NIXPKGS,
+            "--argstr",
+            "purifier",
+            purifier_source(),
+            "--out-link",
+            prefetch_root(path),
+        ],
+        capture=True,
+    )
+    prefetched = Path(out.strip().splitlines()[-1])
+    self = os.environ.get("CABAL_PURIFIER_SELF") or shutil.which("cabal-purifier")
+    if not self:
+        raise Failure("cannot find the cabal-purifier command for the shim")
+    shims = work_dir(root) / "bin"
+    shims.mkdir(parents=True, exist_ok=True)
+    shim = shims / "cabal"
+    shim.write_text(
+        "#!/bin/sh\n"
+        f'CABAL_PURIFIER_SHIM=1 CABAL_PURIFIER_LOCKFILE="{path}" exec "{self}" "$@"\n'
+    )
+    shim.chmod(0o755)
+    toolchain = work_dir(root) / "toolchain"
+    if toolchain.is_symlink() or toolchain.exists():
+        toolchain.unlink()
+    toolchain.symlink_to(prefetched / "toolchain")
+    say(f"prefetched {prefetched}, kept alive by {prefetch_root(path)}")
+    print(f'export PATH="{shims}:{toolchain}/bin:$PATH"')
+
+
+def shim_cabal(root, path, args):
+    """What the `cabal` shim runs: cabal offline on the locked sources."""
+    lock = read_current_lock(root, path)
+    work = work_dir(root)
+    sources = realize(root, path, work / "sources")
     env, project_args = offline_setup(root, lock, sources, work)
-    if not args:
-        raise Failure("give cabal a command, as in `cabal-purifier cabal build`")
+    env.pop("CABAL_PURIFIER_SHIM", None)
     # The project arguments go after the subcommand, which follows any
     # global options: the language server runs `cabal --builddir=… repl`.
     command = next((i for i, a in enumerate(args) if not a.startswith("-")), None)
@@ -888,14 +1086,10 @@ def verb_cabal(args):
     os.execve(cabal, [cabal, *args], env)
 
 
-def shim_dir(root):
-    return root / "dist-newstyle" / "cabal-purifier" / "bin"
-
-
 def real_cabal(root):
-    """The cabal on PATH, past the shim that `cabal-purifier env` puts
-    first, so that the shim's `cabal-purifier cabal` does not run itself."""
-    shims = shim_dir(root).resolve()
+    """The cabal on PATH, past the shim, so that the shim does not run
+    itself."""
+    shims = (work_dir(root) / "bin").resolve()
     path = [p for p in os.environ.get("PATH", "").split(os.pathsep) if p and Path(p).resolve() != shims]
     found = shutil.which("cabal", path=os.pathsep.join(path))
     if not found:
@@ -903,42 +1097,20 @@ def real_cabal(root):
     return found
 
 
-def verb_env(args):
-    """Prints the PATH export that puts a `cabal` shim first: every cabal
-    command then runs as `cabal-purifier cabal`, offline on the locked
-    sources. An editor started with it, through its language server,
-    builds and checks the project offline too."""
-    if args:
-        raise Failure("`cabal-purifier env` takes no arguments")
-    root = project_root()
-    read_lock(root)
-    self = os.environ.get("CABAL_PURIFIER_SELF") or shutil.which("cabal-purifier")
-    if not self:
-        raise Failure("cannot find the cabal-purifier command for the shim")
-    shims = shim_dir(root)
-    shims.mkdir(parents=True, exist_ok=True)
-    shim = shims / "cabal"
-    shim.write_text(f'#!/bin/sh\nexec "{self}" cabal "$@"\n')
-    shim.chmod(0o755)
-    print(f'export PATH="{shims}:$PATH"')
-
-
-def verb_publish(args):
-    root = project_root()
-    if not args:
+def verb_publish(root, path, args):
+    """Uploads the release Nix built: the source tarball of each named
+    package, or with --documentation the documentation tarball of one."""
+    documentation = "--documentation" in args
+    args = [a for a in args if a != "--documentation"]
+    lock = read_current_lock(root, path)
+    packages = lock["outputs"]["packages"]
+    if not args or args[0].startswith("-"):
         raise Failure("name the package to publish, as in `cabal-purifier publish my-package`")
     package, rest = args[0], args[1:]
-    documentation = "--documentation" in rest
-    rest = [a for a in rest if a != "--documentation"]
-    lock = read_lock(root)
-    if package not in lock["outputs"]["packages"]:
-        raise Failure(
-            f"the project has no package {package}; it has "
-            + ", ".join(sorted(lock["outputs"]["packages"]))
-        )
-    version = lock["outputs"]["packages"][package]["version"]
-    artifact = "docs" if documentation else "sdist"
-    say(f"building the {artifact} of {package} with Nix")
+    if package not in packages:
+        raise Failure(f"the project has no package {package}; it has " + ", ".join(sorted(packages)))
+    version = packages[package]["version"]
+    say(f"building the {'documentation' if documentation else 'release'} of {package} with Nix")
     out = run(
         [
             "nix-build",
@@ -948,11 +1120,11 @@ def verb_publish(args):
             "src",
             root.resolve(),
             "--argstr",
-            "package",
-            package,
+            "lockFile",
+            path,
             "--argstr",
-            "artifact",
-            artifact,
+            "documentation",
+            package if documentation else "",
             "--argstr",
             "nixpkgs",
             NIXPKGS,
@@ -965,29 +1137,49 @@ def verb_publish(args):
     built = Path(out.strip().splitlines()[-1])
     suffix = "-docs.tar.gz" if documentation else ".tar.gz"
     tarball = built / f"{package}-{version}{suffix}"
-    upload = ["cabal", "upload", *(["--documentation"] if documentation else []), *rest, tarball]
+    cabal = real_cabal(root)
+    upload = [cabal, "upload", *(["--documentation"] if documentation else []), *rest, tarball]
     say(f"uploading {tarball}")
-    os.execvp("cabal", [str(c) for c in upload])
+    os.execv(cabal, [str(c) for c in upload])
+
+
+VERBS = {"lock": verb_lock, "update": verb_update, "prefetch": verb_prefetch, "publish": verb_publish}
+
+
+def take_lockfile_option(args):
+    """`--lockfile PATH` or `--lockfile=PATH` from anywhere in the arguments."""
+    rest, option = [], None
+    i = 0
+    while i < len(args):
+        if args[i] == "--lockfile":
+            if i + 1 == len(args):
+                raise Failure("--lockfile needs a path")
+            option = args[i + 1]
+            i += 2
+            continue
+        if args[i].startswith("--lockfile="):
+            option = args[i].split("=", 1)[1]
+        else:
+            rest.append(args[i])
+        i += 1
+    return option, rest
 
 
 def main(argv):
-    if not argv or argv[0] in ("-h", "--help", "help"):
-        print(__doc__)
-        return 0
-    verb, args = argv[0], argv[1:]
     try:
-        if verb == "lock":
-            verb_lock(args, force=False)
-        elif verb == "relock":
-            verb_lock(args, force=True)
-        elif verb == "cabal":
-            verb_cabal(args)
-        elif verb == "env":
-            verb_env(args)
-        elif verb == "publish":
-            verb_publish(args)
-        else:
+        if os.environ.get("CABAL_PURIFIER_SHIM") == "1":
+            root = project_root()
+            shim_cabal(root, lockfile_path(root, None), argv)
+            return 0
+        if not argv or argv[0] in ("-h", "--help", "help"):
+            print(__doc__)
+            return 0
+        verb, args = argv[0], argv[1:]
+        if verb not in VERBS:
             raise Failure(f"unknown command {verb}; see `cabal-purifier --help`")
+        option, args = take_lockfile_option(args)
+        root = project_root()
+        VERBS[verb](root, lockfile_path(root, option), args)
     except Failure as error:
         say(str(error))
         return 1

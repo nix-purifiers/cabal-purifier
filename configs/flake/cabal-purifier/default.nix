@@ -57,7 +57,7 @@
           {
             checks = import ../../../tests {
               inherit pkgs;
-              overlay = self.overlays.default;
+              inherit (self.lib.cabal-purifier) buildCabalProject;
               inherit (self.packages.${system}) cli;
               inherit (inputs) shellcheck;
             };

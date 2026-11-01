@@ -6,104 +6,19 @@ lockfile, and Nix builds the project from that lockfile. The project does
 not need generated Nix files of its own.
 
 cabal-purifier is part of [nix-purifiers](https://nix-purifiers.github.io).
+It meets the [purifier contract](https://github.com/nix-purifiers/purifier/blob/main/CONTRACT.md)
+that every nix-purifier meets.
 
-- **A lockfile.** `cabal-purifier lock` writes `cabal-purifier.lock.json` at
-  the project root. It holds every package tarball the plan uses, by URL
-  and SHA-256, with each Hackage revision of a package description, and
-  each source repository at its locked revision. It also holds the plan
-  for x86_64-linux and for aarch64-linux, and the components of the
-  project's own packages.
-- **Sandboxed builds.** `buildCabalProject`, which the flake's overlay adds
-  to a package set, turns a project and its lockfile into derivations, one
-  for each output of the project: `packages.<package>.executables.<name>`,
-  `testSuites.<name>`, `benchmarks.<name>`, `sdist` and `docs`. The
-  lockfile names them, so Nix knows every output when it evaluates,
-  without building anything first.
-- **Offline Cabal during development.** `cabal-purifier cabal build` (or any
-  other cabal command) runs cabal against the locked sources, which Nix
-  fetches.
-- **Publishing what Nix built.** `cabal-purifier publish <package>` builds the
-  package's source tarball in the sandbox and uploads that file with
-  `cabal upload`. With `--documentation`, it uploads the documentation
-  tarball Nix built.
+## Quickstart
 
-## How the lock is made
-
-`cabal-purifier lock` runs `cabal update` in an empty Cabal directory, so
-your own Cabal configuration does not apply, and then plans the project
-with `cabal build all --dry-run`, with tests and benchmarks enabled. The
-package index is the one thing it keeps between runs, in
-`~/.cache/cabal-purifier` (or under `XDG_CACHE_HOME`), because Cabal
-updates an index it already has in place: the first lock downloads all of
-Hackage's index, and later ones take seconds. It
-plans once for each system. Cabal takes the platform it plans for from
-the compiler's `ghc --info`, so the command plans for the other system
-through a GHC wrapper that reports that system and never compiles
-anything. One machine therefore locks both systems.
-
-From each plan (`plan.json`), the command records:
-
-- each package from Hackage (or another package repository) with the
-  tarball's SHA-256 that the plan gives. When Hackage holds a revision of
-  the package description, the command finds its number in the package
-  index and records the revision's own URL, `revision/<n>.cabal`, which
-  never changes. The plan's `pkg-cabal-sha256` is that file's hash.
-- each `source-repository-package` at its locked revision, with the hash
-  of its checkout.
-- each package URL in `packages:`, with the SHA-256 of its tarball.
-- every package's version and flags, and which packages the compiler
-  provides.
-- the components of each package of the project: its library and
-  sublibraries, executables, test suites, benchmarks and foreign
-  libraries. These are the outputs of `buildCabalProject`.
-
-The command then checks the lock: it fetches the locked sources through
-Nix and plans the project again from those alone, and the plan must match
-the lock.
-
-`cabal-purifier lock` relocks only when `cabal.project`, its `.freeze` or
-`.local` file, or a package's `.cabal` file changed. `cabal-purifier relock`
-relocks regardless. `--no-tests` and `--no-benchmarks` lock a plan without
-test suites or benchmarks, for a project whose test dependencies do not
-resolve.
-
-The lock run plans with the `ghc` on your `PATH`, or the compiler that
-`with-compiler` names, and with the command's own GHC otherwise. Nix builds
-with nixpkgs' GHC of the exact version the lock names.
-
-The lockfile records the index state it planned with (`indexState`), and
-`lock` and `relock` plan with that index state again. Adding a dependency
-and locking therefore keeps every other package where it was, and a
-relock reproduces the lockfile byte for byte. `--update` plans with the
-newest index instead, which is how to upgrade dependencies. When a new
-dependency is newer than the recorded index state, Cabal cannot plan it,
-and the command says to run `cabal-purifier lock --update`. An
-`index-state` in the project's own files takes precedence, and the
-lockfile then records none.
-
-## Use
-
-In the project root:
+In the project root, which has a `cabal.project` or a `.cabal` file:
 
 ```zsh
 nix run github:nix-purifiers/cabal-purifier -- lock
 ```
 
-Commit `cabal-purifier.lock.json`. The flake's `overlays.default` adds
-`buildCabalProject` to a package set, and a package written for
-`callPackage` takes it by name:
-
-```nix
-# package.nix
-{ buildCabalProject, pkg-config, zlib }:
-buildCabalProject {
-  src = ./.;
-  name = "my-project";
-  # Libraries outside Cabal, such as zlib for `pkgconfig-depends: zlib`.
-  nativeBuildInputs = [ pkg-config ];
-  buildInputs = [ zlib ];
-}
-```
+This writes `cabal-purifier.lock.json`. Commit it. Then build the project
+with the flake's builder, `lib.cabal-purifier.buildCabalProject`:
 
 ```nix
 {
@@ -113,84 +28,255 @@ buildCabalProject {
   outputs = { nixpkgs, cabal-purifier, ... }:
     let
       system = "x86_64-linux";
-      pkgs = import nixpkgs {
-        inherit system;
-        overlays = [ cabal-purifier.overlays.default ];
+      pkgs = nixpkgs.legacyPackages.${system};
+      project = cabal-purifier.lib.cabal-purifier.buildCabalProject {
+        inherit pkgs;
+        src = ./.;
+        # Libraries outside Cabal, such as zlib for `pkgconfig-depends: zlib`.
+        nativeBuildInputs = [ pkgs.pkg-config ];
+        buildInputs = [ pkgs.zlib ];
       };
-      project = pkgs.callPackage ./package.nix { };
     in
     {
       packages.${system} = {
         default = project.packages.my-app.executables.my-app;
-        sdist = project.packages.my-lib.sdist;
+        release = project.release;
       };
-      checks.${system}.spec = project.packages.my-lib.testSuites.spec;
+      checks.${system}.tests = project.tests;
     };
 }
 ```
 
-`buildCabalProject` returns:
+`buildCabalProject` returns these attributes, and Nix knows every name
+when it evaluates, without building anything:
 
+- `packages.<package>`, for each package of the project:
+  - `executables.<name>`, each executable at `bin/<name>`;
+  - `testSuites.<name>`, a run of each test suite in a copy of the
+    package directory;
+  - `benchmarks.<name>`, each benchmark at `bin/<name>`;
+  - `sdist`, the source tarball that `cabal sdist` makes, and `docs`, the
+    documentation tarball for Hackage from
+    `cabal haddock --haddock-for-hackage`; `.tarball` names the file of
+    each;
+  - `library`, `sublibraries` and `foreignLibraries`, the library
+    components as the lock records them.
+- `tests`, the run of every test suite of the project.
+- `release`, a directory with the source tarball of each package, the
+  files that `cabal-purifier publish` uploads.
+- `fetches`, the entries of the
+  [purifier library](https://github.com/nix-purifiers/purifier) that the
+  build fetches, for SBOM, license and vulnerability tools.
 - `project`, the build of every component of every package, by
-  `cabal build all` against the locked plan. `doCheck = true` also runs
-  `cabal test all` in it.
-- `packages.<package>.executables.<name>`, each executable at
-  `bin/<name>`.
-- `packages.<package>.testSuites.<name>`, a run of each test suite in a
-  copy of its package's directory.
-- `packages.<package>.benchmarks.<name>`, each benchmark at `bin/<name>`.
-- `packages.<package>.sdist`, the source tarball that `cabal sdist`
-  makes; `sdist.tarball` names the file.
-- `packages.<package>.docs`, the documentation tarball for Hackage from
-  `cabal haddock --haddock-for-hackage`; `docs.tarball` names the file.
-- `packages.<package>.library`, `sublibraries` and `foreignLibraries`,
-  the package's library components as the lock records them.
-- `repository`, the locked sources.
+  `cabal build all` against the locked plan, and `repository`, the locked
+  sources.
 
-`nix/lib/build-cabal-project.nix` documents the builder's arguments:
-`ghc` (the default is nixpkgs' GHC of the version the lock names),
-`nativeBuildInputs` and `buildInputs` for libraries outside Cabal,
-`doCheck`, `cabalFlags` for more arguments to every cabal command,
-`fetchurl` and `fetchgit` for credentials or mirrors, `externalPaths` for
-local packages outside the project, and `srcFilter`.
+The builder also takes `ghc` (the default is the nixpkgs GHC of the
+version the lock names), `cabalFlags` for more arguments to every cabal
+command, `srcFilter`, `externalPaths` for local packages outside the
+project (see [Sources supported and refused](#sources-supported-and-refused)),
+and `fetchers`. A company mirror or credentials go into
+`fetchers.fetchurl` (and `fetchers.fetchgit` for a private git
+repository), which the purifier library's `fetchEntry` calls with the
+arguments of the nixpkgs fetcher of that name.
+
+### A lockfile outside the project
+
+A flake that packages a project whose author does not change it keeps the
+lockfile outside the project tree and passes it as `lockFile`:
+
+```nix
+cabal-purifier.lib.cabal-purifier.buildCabalProject {
+  inherit pkgs;
+  src = inputs.some-project;
+  lockFile = ./locks/some-project.lock.json;
+}
+```
+
+A `lockFile` outside `src` takes the place of any lockfile in it. Every
+command takes `--lockfile <path>`, or the environment variable
+`CABAL_PURIFIER_LOCKFILE`, for such a lockfile, and either one takes
+precedence over the default, `cabal-purifier.lock.json` at the project
+root. The dev shell of the flake can set the variable to the same path, so
+that a developer runs the commands with no flag.
+
+## Everyday loop
+
+```zsh
+eval "$(nix run github:nix-purifiers/cabal-purifier -- prefetch)"
+cabal build
+cabal test
+```
+
+`prefetch` (see [Offline work](#offline-work)) puts a `cabal` shim first
+on `PATH`. The shim runs cabal against the locked sources, so the
+everyday commands are cabal commands: `cabal build`, `cabal run my-app`
+and `cabal test`. When a project file changed since the lock, the shim
+exits with an error that says to run `cabal-purifier lock`.
+
+To lock after a change, or to move dependencies:
+
+- `cabal-purifier lock` records the resolution that Cabal makes, as it is. The plan
+  uses the package index as of the last lock, so adding a dependency
+  keeps every other package where it was, and locking an unchanged
+  project writes the same file byte for byte. A `cabal.project.freeze`
+  stays as it is.
+- `cabal-purifier update [<package>...]` re-resolves the named packages,
+  or every package, with the newest package index, writes
+  `cabal.project.freeze` again when the project has one, and then locks.
+  Afterwards both files pass the staleness check.
+- `cabal-purifier publish <package> [--documentation]` uploads what Nix
+  built: the source tarball of the package, taken from `release`, or with
+  `--documentation` its documentation tarball, with `cabal upload` as a
+  package candidate. Options after the package name go to `cabal upload`,
+  so `--publish` publishes the release, and credentials work as they do
+  for `cabal upload`.
+
+`--no-tests` and `--no-benchmarks` lock a plan without test suites or
+benchmarks, for a project whose test dependencies do not resolve.
+
+### How the lock is made
+
+`cabal-purifier lock` runs `cabal update` in an empty Cabal directory, so
+your own Cabal configuration does not apply, and then plans the project
+with `cabal build all --dry-run`, with tests and benchmarks enabled. The
+package index is the one thing it keeps between runs, in
+`~/.cache/cabal-purifier` (or under `XDG_CACHE_HOME`), because Cabal
+updates an index it already has in place: the first lock downloads the
+whole Hackage index, and later ones take seconds. The command plans once for
+each system. Cabal takes the platform it plans for from the output of
+`ghc --info`, so the command plans for the other system through a GHC
+wrapper that reports that system and never compiles anything. One machine
+therefore locks both systems.
+
+The lock run plans with the `ghc` on your `PATH`, or the compiler that
+`with-compiler` names, and with a GHC that the command brings along
+otherwise. Nix
+builds with the nixpkgs GHC of the exact version the lock names.
+
+From each plan (`plan.json`), the command records:
+
+- each package from Hackage (or another package repository) with the
+  SHA-256 of the tarball that the plan gives. When Hackage holds a
+  revision of the package description, the command finds its number in
+  the package index and records the URL of that revision,
+  `revision/<n>.cabal`, which never changes. The `pkg-cabal-sha256` of
+  the plan is the hash of that file.
+- each `source-repository-package` at its locked revision, with the hash
+  of its checkout.
+- each package URL in `packages:`, with the SHA-256 of its tarball.
+- the version and the flags of every package, and which packages the
+  compiler provides.
+- the components of each package of the project. These are the outputs of
+  `buildCabalProject`.
+
+Cabal files record no hashes, so the lockfile holds what the build needs
+from them. `cabal.project.freeze` pins versions and the index state, and
+the lockfile adds the hashes and the revisions. The lockfile holds a
+format `version` and a `hash` of its own content. It records the index
+state it planned with (`indexState`), which the next `lock` plans with
+again. An `index-state` in the files of the project takes precedence, and
+the lockfile then records none.
+
+The command then checks the lock: it fetches the locked sources through
+Nix and plans the project again from those alone, and the plan must match
+the lock.
+
+## Offline work
+
+```zsh
+eval "$(nix run github:nix-purifiers/cabal-purifier -- prefetch)"
+```
+
+`prefetch` realizes in the Nix store everything the lockfile lists for
+the current system that day-to-day development needs:
+
+- the locked sources, which fill the no-index repository that the shim
+  builds from;
+- the toolchain, which is the GHC of the plan in the lock, cabal-install, and the
+  haskell-language-server for that GHC.
+
+It keeps them alive with a garbage-collector root,
+`cabal-purifier.lock.prefetch`, beside the lockfile, writes the shim to
+`dist-newstyle/cabal-purifier/bin/cabal`, and prints a `PATH` export that
+puts the shim and the toolchain first. After a prefetch, `cabal build`,
+`cabal run`, `cabal test` and the editor work with the network cut off.
+The script `tests/conformance-offline.sh` runs them with every proxy
+pointed at a closed port.
+
+The shim runs cabal with a Cabal directory whose only repository is the
+locked one, and with an offline copy of the configuration of the project. The
+Cabal directory belongs to the command, so your `~/.config/cabal/config`
+does not apply, and the package store is under
+`dist-newstyle/cabal-purifier/cabal`.
 
 ### How the build resolves offline
 
-The lockfile records each download as an entry of the library that the
-nix-purifiers share
-([github:nix-purifiers/purifier](https://github.com/nix-purifiers/purifier)),
-and that library's `fetchEntry` fetches it. The builder makes a Cabal
-no-index repository (`file+noindex://`) of the locked sources. It holds
-each package tarball, each Hackage revision of a
-package description as `<name>-<version>.cabal` beside its tarball, and
-each package from a source repository as a tarball packed from its
+The Nix builder makes a Cabal no-index repository (`file+noindex://`) of
+the locked sources. It holds each package tarball, each Hackage revision
+of a package description as `<name>-<version>.cabal` beside its tarball,
+and each package from a source repository as a tarball packed from its
 locked checkout. The build runs cabal with that repository as its only
-repository, and with an offline copy of the project's configuration
+repository, and with an offline copy of the configuration of the project
 (`nix/lib/offline_project.py`). The copy leaves out the
 `source-repository-package` and `repository` sections and the
 `index-state`, replaces each package URL with its unpacked directory, and
-adds the lock's constraints, so Cabal resolves to the locked plan. After
-the build, the builder compares Cabal's plan with the lock and fails on
+adds the constraints of the lock, so Cabal resolves to the locked plan.
+After the build, the builder compares the plan that Cabal made with the
+lock and fails on
 any difference.
 
-### Sources
+## Editor
+
+`prefetch` puts the `haskell-language-server` of the toolchain and the `cabal`
+shim first on `PATH`. An editor started from that shell, or with that
+`PATH`, loads the project through the shim, so the build tool calls of the
+language server go to the locked sources and nothing is downloaded.
+A `.envrc` with the `eval` line from [Offline work](#offline-work) does
+the same for direnv. `tests/conformance-offline.sh` runs the language
+server on the two modules of the workspace fixture with the network cut
+off, and it reports no failed file.
+
+## Errors and fixes
+
+The Nix library checks the lockfile whenever it reads it (`readLock`
+returns the problems, and the builder fails evaluation with them), and
+the command makes the same checks. Each problem names the command that
+fixes it, which is `cabal-purifier lock` for every one of these:
+
+| Problem | What the message says |
+| --- | --- |
+| A project file changed since the lock | `hello.cabal changed since the lock`, and the shim exits with an error. |
+| The lockfile is not valid JSON | `is not valid JSON` with the position. |
+| A section is missing, or the format `version` differs from the one this command writes | `is damaged: it has no <sections>`, or the version the file has and the version this command writes. |
+| The lockfile changed after `lock` wrote it | `its content does not match its hash`. |
+| A repository file or package URL names a download the lock lacks, or a plan uses a package no locked source provides | `names no download <path>` or `uses <package>, which no locked source provides`. |
+| A download no longer matches its hash | Nix reports the mismatch, and the command says the lockfile was edited or the source changed upstream. |
+| A build whose plan differs from the lock | The build lists the packages that differ. |
+| A dependency newer than the recorded index state | Cabal cannot plan it, and the command says to run `cabal-purifier update`. |
+
+The checks `conformance-stale`, `conformance-tampered`,
+`conformance-missing` and `conformance-malformed` of the flake evaluate
+the library with each kind of broken lockfile and check the message.
+
+## Sources supported and refused
 
 Every kind of source that cabal-install fetches works:
 
-- **Hackage and other package repositories**, with Hackage's revisions of
+- **Hackage and other package repositories**, with Hackage revisions of
   package descriptions. A repository that needs credentials takes them
-  through the builder's `fetchurl` argument.
+  through `fetchers.fetchurl`.
 - **Git source repositories** (`source-repository-package` with
   `type: git`), with their submodules, which Cabal checks out too. The Nix
   sandbox has no SSH keys, so a repository over SSH is locked at the HTTPS
   URL of the same host and path. A private repository takes a credentialed
-  fetcher through the builder's `fetchgit` argument. The lock run itself
-  uses your SSH keys and git credentials.
+  fetcher through `fetchers.fetchgit`. The lock run itself uses your SSH
+  keys and git credentials.
 - **Mercurial and Darcs source repositories.** A Mercurial source needs a
   `tag`. A Darcs source without a `tag` is locked by the Darcs context of
   the checkout Cabal made in the lock run.
 - **Package URLs** in `packages:`.
-- **Local packages inside the project**, which are the project's outputs,
+- **Local packages inside the project**, which are the outputs of the project,
   and **local tarballs and no-index repositories inside the project**.
 - **Local packages outside the project**, such as `packages: ../shared`.
   The lock lists them as `externalPaths`, and the build takes each tree as
@@ -198,138 +284,72 @@ Every kind of source that cabal-install fetches works:
 
   ```nix
   buildCabalProject {
+    inherit pkgs;
     src = ./.;
     externalPaths."../shared" = inputs.shared;
   }
   ```
 
-cabal-install refuses to sync Subversion, Bazaar, CVS and Pijul source
-repositories (`cabal update` fails with "sync repo not yet supported", or
-with `SourceRepoRepoTypeUnsupported` for Pijul), so a project cannot use
-them and there is nothing of those kinds to lock.
+The command refuses these:
 
-### Development
-
-```zsh
-nix run github:nix-purifiers/cabal-purifier -- cabal build
-```
-
-This fetches the locked sources through Nix into
-`dist-newstyle/cabal-purifier/` and runs `cabal build` with a Cabal
-directory whose only repository is the locked one, and with the offline
-copy of the project's configuration. Arguments after `cabal` go to cabal,
-so `cabal-purifier cabal run my-app` and `cabal-purifier cabal test` work
-the same way. The command uses the `cabal` on your `PATH`, and its own
-otherwise. The link `dist-newstyle/cabal-purifier/sources` is the GC root
-that keeps the locked files in the store. The Cabal directory is the
-command's own, so your `~/.config/cabal/config` does not apply and the
-package store is under `dist-newstyle/cabal-purifier/cabal`. When the
-lockfile is out of date, the command warns and runs cabal the usual way
-until `cabal-purifier lock` renews it.
-
-For an editor, and for every other tool that runs cabal itself, put the
-command's `cabal` shim first on `PATH`:
-
-```zsh
-eval "$(nix run github:nix-purifiers/cabal-purifier -- env)"
-```
-
-Every `cabal` command then runs as `cabal-purifier cabal`, offline on the
-locked sources. haskell-language-server, started from that shell or with
-that `PATH`, loads the project through the shim: its build tool calls go
-to the locked sources, and it needs a GHC on `PATH` as it always does. A
-`.envrc` with that line does the same for direnv.
-
-The lockfile is checked whenever the command or the Nix library reads it,
-and each problem comes with the command that fixes it:
-
-- a project file that changed since the lock: the command warns and runs
-  cabal the usual way, and a Nix build fails, both saying to run
-  `cabal-purifier lock`;
-- a lockfile that is not valid JSON, or one whose downloads, repository
-  files and plans do not match up: both say what is wrong and to run
-  `cabal-purifier relock`;
-- a download that no longer matches its hash: the command explains that
-  the lockfile was edited or the source changed, and to run
-  `cabal-purifier relock`;
-- a build whose plan differs from the lock: the build lists the packages
-  that differ.
-
-### Publishing
-
-```zsh
-nix run github:nix-purifiers/cabal-purifier -- publish my-lib
-nix run github:nix-purifiers/cabal-purifier -- publish my-lib --documentation
-```
-
-This builds `packages.my-lib.sdist` (or `.docs`) and uploads the file with
-`cabal upload`, as a package candidate. Options after the package name go
-to `cabal upload`, so `--publish` publishes the release, and credentials
-work as they do for `cabal upload`.
-
-## Projects tried
-
-- **[ShellCheck](https://github.com/koalaman/shellcheck) v0.11.0**, a
-  single package with no `cabal.project`, a library, the `shellcheck`
-  executable and a test suite. `cabal-purifier lock` in a checkout of the
-  release records 70 downloads. The flake's checks build it in the sandbox
-  from that lockfile (`tests/real-world/shellcheck`), run `shellcheck` on
-  a script, and run ShellCheck's own test suite.
-
-## Limits
-
-- **Libraries outside Cabal.** A `.cabal` file names system libraries
-  (`extra-libraries`, `pkgconfig-depends`) but not where they come from,
-  so the builder takes them as `nativeBuildInputs` and `buildInputs`.
+- **Subversion, Bazaar, CVS and Pijul source repositories.** cabal-install
+  does not sync them (`cabal update` fails with "sync repo not yet
+  supported", or with `SourceRepoRepoTypeUnsupported` for Pijul), so a
+  project cannot use them and there is nothing to lock.
 - **Local packages given by absolute path.** A Nix build can create files
   only inside its own build directory, so it cannot put a tree at an
   absolute path. Paths relative to the project work.
 - **Imports by URL in `cabal.project`.** Cabal fetches such an import while
   it reads the project, before any build step, so the offline copy cannot
   hold it, and the command explains this. Imports of local files work.
-- **Your own Cabal configuration.** The lock run and the builds use an
-  empty Cabal directory, so settings in `~/.config/cabal/config` do not
-  apply. Settings in `cabal.project` do.
 
-## Credit
+A `.cabal` file names system libraries (`extra-libraries`,
+`pkgconfig-depends`) but not where they come from, so the builder takes
+them as `nativeBuildInputs` and `buildInputs`.
+
+## Real-world projects
+
+- **[ShellCheck](https://github.com/koalaman/shellcheck) v0.11.0**, a
+  single package with no `cabal.project`, a library, the `shellcheck`
+  executable and a test suite. `cabal-purifier lock` in a checkout of the
+  release records 70 downloads. The checks of the flake build it in the
+  sandbox from that lockfile (`tests/real-world/shellcheck`), run
+  `shellcheck` on a script, and run the test suite of ShellCheck.
+
+### Tests
+
+`nix flake check` runs the unit tests (`tests/unit`), builds the fixtures
+under `tests/fixtures` in the sandbox and runs each: an app on Hackage
+packages, one of them with a Hackage revision, a workspace with a library,
+its test suite and benchmark, an executable, a git source repository, a
+package URL and a local package outside the project, and an external
+fixture whose lockfile lies outside it (`conformance-external`). The
+`conformance-*` checks of the contract that the sandbox can run are in the
+flake. Four need the network or Nix itself, and CI runs them as steps of
+the same name: `tests/conformance-relock.sh` relocks every fixture and
+ShellCheck and compares the result with the committed lockfile, byte for
+byte, `tests/conformance-rebuild.sh` rebuilds the app fixture with
+`nix build --rebuild`, `tests/conformance-offline.sh` runs the everyday
+loop and the language server with the network cut off, and
+`tests/conformance-update.sh` updates a fixture that pins an old `async`.
+
+`tests/interactive.sh` tests the errors that stop `prefetch` and the
+shim, adds a dependency and locks, and publishes to a stand-in Hackage
+(`tests/fake_hackage.py`), comparing the uploaded bytes with the tarball
+Nix built. `tests/vcs.sh` serves a Mercurial repository and two Darcs
+repositories on 127.0.0.1, locks a project that takes all three, and
+builds and runs it with Nix. CI runs all of them on x86_64-linux and
+aarch64-linux.
+
+## Credits
 
 cabal-purifier follows the design of
 [sbt-nix-backend](https://github.com/nix-purifiers/sbt-purifier): a lock run
 with empty caches that records every download, a builder that runs the
 tool itself in the sandbox from that lockfile, an offline interactive mode
-on the same locked files, and publishing what Nix built. nixcloud's
-[cargo (libnix)](https://github.com/nixcloud/cargo) inspired the
-nix-purifiers family.
-
-## Tests
-
-`nix flake check` runs the unit tests (`tests/unit`: the lock run's
-parsing of plans, package indexes and lockfiles, its URL and path logic,
-the offline project copy and the plan check). It builds the fixtures
-under `tests/fixtures` in the sandbox and runs each: an app on Hackage
-packages, one of them with a Hackage revision, and a workspace with a
-library, its test suite and benchmark, an executable, a git source
-repository, a package URL and a local package outside the project. The
-checks also inspect the source and documentation tarballs, and build
-ShellCheck v0.11.0, pinned in `tests/dependencies/flake.nix`, from its
-lockfile under `tests/real-world`. Negative
-checks give the builder a stale lockfile, one with a missing download,
-one whose plan names a package no source provides, and a system the lock
-has no plan for, and each must fail.
-
-`tests/interactive.sh` tests what runs outside the sandbox. It relocks
-each fixture and compares the result with the committed lockfile, byte
-for byte. It builds and runs the workspace with `cabal-purifier cabal`
-with every proxy pointed at a closed port, adds a dependency and locks,
-and checks the errors for a stale, a malformed, an inconsistent and a
-tampered lockfile. It also publishes to a stand-in Hackage
-(`tests/fake_hackage.py`) and compares the uploaded bytes with the tarball
-Nix built. `tests/vcs.sh` serves a Mercurial repository and two Darcs
-repositories on 127.0.0.1, locks a project that takes all three, and
-builds and runs it with Nix. `tests/editor.sh` runs
-haskell-language-server on the workspace through the `cabal-purifier env`
-shim, with every proxy pointed at a closed port. CI runs all of them on
-x86_64-linux and aarch64-linux.
+on the same locked files, and publishing what Nix built. The
+[cargo (libnix)](https://github.com/nixcloud/cargo) project by nixcloud
+inspired the nix-purifiers family.
 
 ## License
 

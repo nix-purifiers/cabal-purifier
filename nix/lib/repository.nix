@@ -25,27 +25,33 @@
   # The `purifier` library namespace of github:nix-purifiers/purifier,
   # whose `fetchEntry` fetches each download of the lock.
   purifier,
-  lockFile,
+  # The lockfile, as the `cabal` attribute of readLock (read-lock.nix)
+  # gives it.
+  lock,
+  # The downloads of one system, as the purifier library's entriesFor
+  # gives them.
+  entries,
   # The project root, for repository files that the project itself holds.
   src ? null,
-  # Replace nixpkgs' fetchurl for files and nixpkgs' fetchgit for git
-  # checkouts, as for downloads that need credentials. `fetchEntry` calls
-  # each with the arguments of the nixpkgs fetcher of its name.
-  fetchurl ? null,
-  fetchgit ? null,
+  # Replacements for the fetchers of `fetchEntry`, which calls each with
+  # the arguments of the nixpkgs fetcher of its name.
+  fetchers ? { },
 }:
 let
-  lock = import ./lock.nix { inherit lockFile; };
-  fetch = purifier.fetchEntry (
-    {
-      inherit pkgs;
-    }
-    // lib.optionalAttrs (fetchurl != null) { inherit fetchurl; }
-    // lib.optionalAttrs (fetchgit != null) { inherit fetchgit; }
+  fetch = purifier.fetchEntry ({ inherit pkgs; } // fetchers);
+  wanted = lib.listToAttrs (
+    map (e: {
+      name = e.path;
+      value = e;
+    }) entries
   );
 
-  linked = lib.filter (f: f ? from) lock.repository;
-  packed = lib.filter (f: f ? pack) lock.repository;
+  # A download at repository/<file> is that file of the repository.
+  linked = map (d: {
+    file = lib.removePrefix "repository/" d.path;
+    download = d;
+  }) (lib.filter (d: lib.hasPrefix "repository/" d.path) entries);
+  packed = lib.filter (f: f ? pack && wanted ? ${f.pack.from}) lock.repository;
   fromProject = lib.filter (f: f ? project) lock.repository;
 
   projectFile =
@@ -57,9 +63,9 @@ let
 
   remoteDirs = lib.imap0 (i: r: {
     inherit (r) uri;
-    tarball = fetch (lock.download r.from);
+    tarball = fetch wanted.${r.from};
     dir = "remote/${toString i}";
-  }) lock.remotePackages;
+  }) (lib.filter (r: wanted ? ${r.from}) lock.remotePackages);
 in
 # The manifests go to the builder as files, since a large project locks
 # hundreds of packages and the list would not fit in an environment
@@ -70,10 +76,10 @@ runCommand "cabal-purifier-repository"
       gnutar
       gzip
     ];
-    links = lib.concatMapStrings (f: "${f.file}\t${fetch (lock.download f.from)}\n") linked;
+    links = lib.concatMapStrings (f: "${f.file}\t${fetch f.download}\n") linked;
     projectLinks = lib.concatMapStrings (f: "${f.file}\t${projectFile f}\n") fromProject;
     packs = lib.concatMapStrings (
-      f: "${f.file}\t${fetch (lock.download f.pack.from)}\t${f.pack.subdir}\t${f.pack.root}\n"
+      f: "${f.file}\t${fetch wanted.${f.pack.from}}\t${f.pack.subdir}\t${f.pack.root}\n"
     ) packed;
     remotes = lib.concatMapStrings (r: "${r.dir}\t${r.tarball}\n") remoteDirs;
     remoteJson = builtins.toJSON (

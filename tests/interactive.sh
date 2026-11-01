@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
 #
-# Tests what runs outside the Nix sandbox, in copies of the fixtures:
+# Tests the commands outside the Nix sandbox, in copies of the fixtures,
+# beyond the conformance tests (tests/conformance-*.sh):
 #
-# - `cabal-purifier relock` reproduces each committed lockfile. The
-#   fixtures pin Hackage's index with `index-state`, so a relock resolves
-#   to the same plan.
-# - `cabal-purifier cabal run` builds and runs the workspace offline from
-#   the locked sources, with every proxy pointed at a closed port, so any
-#   download would fail.
-# - A lockfile that no longer matches the project makes `cabal-purifier
-#   cabal` warn and run cabal the usual way.
+# - A lockfile older than the project makes `prefetch` and the `cabal`
+#   shim stop with a message that names `cabal-purifier lock`.
+# - Adding a dependency and locking keeps the index state of the last
+#   lock, and the shim then builds the project offline.
+# - A malformed, incomplete or tampered lockfile gives an error that says
+#   what is wrong and names `cabal-purifier lock`.
 # - `cabal-purifier publish` uploads the source and documentation tarballs
 #   that Nix built to a stand-in Hackage (tests/fake_hackage.py), byte for
 #   byte.
@@ -18,60 +17,31 @@
 # Run it from the repository root. It needs nix and network access to
 # Hackage and GitHub.
 set -euo pipefail
+. tests/common.sh
+server=
+trap 'kill "$server" 2>/dev/null || true; cleanup' EXIT
 
-root=$(pwd)
-cli=$(nix build "$root#cli" --no-link --print-out-paths)/bin/cabal-purifier
-# The lock run plans with the first GHC and cabal on PATH, and a CI image
-# can bring its own, so the test puts the ones the flake locks first.
-for tool in $(nix build --inputs-from "$root" 'nixpkgs#ghc' 'nixpkgs#cabal-install' --no-link --print-out-paths); do
-  PATH="$tool/bin:$PATH"
-done
-export PATH
-work=$(mktemp -d)
-trap 'kill "${server:-}" 2>/dev/null || true; chmod -R u+w "$work"; rm -rf "$work"' EXIT
-cp -r "$root/tests/fixtures" "$work/fixtures"
-chmod -R u+w "$work/fixtures"
-
-fail() {
-  echo "interactive.sh: $*" >&2
-  exit 1
+# Runs a command in a directory, which must fail with a message that holds
+# `expected` and names `cabal-purifier lock`.
+expect_failure() {
+  local dir=$1 expected=$2 message
+  shift 2
+  if message=$(cd "$dir" && "$@" 2>&1); then
+    fail "$* succeeded in $dir"
+  fi
+  case "$message" in
+    *"$expected"*"cabal-purifier lock"*) ;;
+    *) fail "the error in $dir did not say $expected and name cabal-purifier lock: $message" ;;
+  esac
 }
 
-echo "== relock reproduces the committed lockfiles"
-for fixture in app workspace; do
-  (cd "$work/fixtures/$fixture" && "$cli" relock)
-  if ! diff -u "$root/tests/fixtures/$fixture/cabal-purifier.lock.json" \
-    "$work/fixtures/$fixture/cabal-purifier.lock.json"; then
-    fail "relocking $fixture changed its lockfile"
-  fi
-done
-
-echo "== cabal runs the workspace offline"
-output=$(
-  cd "$work/fixtures/workspace"
-  http_proxy=http://127.0.0.1:9 https_proxy=http://127.0.0.1:9 \
-    HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 \
-    ALL_PROXY=http://127.0.0.1:9 all_proxy=http://127.0.0.1:9 no_proxy='' NO_PROXY='' \
-    "$cli" cabal run greet
-)
-echo "$output"
-case "$output" in
-  *"hello workspace"*) ;;
-  *) fail "cabal run greet printed no greeting" ;;
-esac
-(cd "$work/fixtures/workspace" && "$cli" cabal test greeting) | tee "$work/test.log"
-grep -q "spec passed" "$work/test.log" || fail "cabal test greeting did not run the spec"
-[ -L "$work/fixtures/workspace/dist-newstyle/cabal-purifier/sources" ] ||
-  fail "cabal left no GC root for the locked sources"
-
-echo "== a stale lock falls back to cabal with a warning"
+echo "== a stale lockfile stops prefetch and the shim"
 cp -r "$work/fixtures/app" "$work/stale"
+(cd "$work/stale" && eval "$("$cli" prefetch)" && cabal --numeric-version > /dev/null)
 echo "-- changed" >> "$work/stale/hello.cabal"
-warning=$(cd "$work/stale" && "$cli" cabal --numeric-version 2>&1 >/dev/null)
-case "$warning" in
-  *"hello.cabal changed since the lock"*) ;;
-  *) fail "a stale lock gave no warning: $warning" ;;
-esac
+expect_failure "$work/stale" "hello.cabal changed since the lock" "$cli" prefetch
+expect_failure "$work/stale" "hello.cabal changed since the lock" \
+  "$work/stale/dist-newstyle/cabal-purifier/bin/cabal" build
 
 echo "== adding a dependency and locking keeps the index state"
 cp -r "$work/fixtures/app" "$work/added"
@@ -86,34 +56,36 @@ before, after = (json.load(open(p)) for p in sys.argv[1:])
 assert before["indexState"] == after["indexState"], (before["indexState"], after["indexState"])
 assert before["definition"]["hello.cabal"] != after["definition"]["hello.cabal"]
 EOF
-(cd "$work/added" && "$cli" cabal build hello) > /dev/null
+(
+  cd "$work/added"
+  eval "$("$cli" prefetch)"
+  offline
+  cabal build hello > /dev/null
+)
 
 echo "== a damaged lockfile gives an error that names the fix"
-expect_failure() {
-  local dir=$1 expected=$2 message
-  if message=$(cd "$dir" && "$cli" cabal build 2>&1); then
-    fail "cabal build succeeded with a damaged lockfile in $dir"
-  fi
-  case "$message" in
-    *"$expected"*"cabal-purifier relock"*) ;;
-    *) fail "the error for $dir did not say $expected and name relock: $message" ;;
-  esac
-}
 cp -r "$work/fixtures/app" "$work/malformed"
-echo '{ "version": 1, ' > "$work/malformed/cabal-purifier.lock.json"
-expect_failure "$work/malformed" "is not valid JSON"
+echo '{ "version": 2, ' > "$work/malformed/cabal-purifier.lock.json"
+expect_failure "$work/malformed" "is not valid JSON" "$cli" prefetch
 
 cp -r "$work/fixtures/app" "$work/missing"
-python3 - "$work/missing/cabal-purifier.lock.json" <<'EOF'
+python3 - "$work/missing/cabal-purifier.lock.json" "$root/bin/cabal-purifier" <<'EOF'
+import importlib.machinery
+import importlib.util
 import json
 import sys
 
+loader = importlib.machinery.SourceFileLoader("cabal_purifier", sys.argv[2])
+spec = importlib.util.spec_from_loader("cabal_purifier", loader)
+cli = importlib.util.module_from_spec(spec)
+loader.exec_module(cli)
 path = sys.argv[1]
 lock = json.load(open(path))
 lock["downloads"] = [d for d in lock["downloads"] if d["path"] != "repository/random-1.3.1.tar.gz"]
+lock["hash"] = cli.content_hash(lock)
 json.dump(lock, open(path, "w"))
 EOF
-expect_failure "$work/missing" "names no download repository/random-1.3.1.tar.gz"
+expect_failure "$work/missing" "uses random-1.3.1, which no locked source provides" "$cli" prefetch
 
 cp -r "$work/fixtures/app" "$work/tampered"
 python3 - "$work/tampered/cabal-purifier.lock.json" <<'EOF'
@@ -127,7 +99,7 @@ for download in lock["downloads"]:
         download["hash"] = "sha256-" + "A" * 43 + "="
 json.dump(lock, open(path, "w"))
 EOF
-expect_failure "$work/tampered" "hash mismatch means"
+expect_failure "$work/tampered" "does not match its hash" "$cli" prefetch
 
 echo "== publish uploads the tarballs Nix built"
 python3 "$root/tests/fake_hackage.py" "$work/port" "$work/uploads" &

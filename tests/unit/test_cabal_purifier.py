@@ -145,14 +145,19 @@ class RevisionsTest(unittest.TestCase):
 class LockProblemsTest(unittest.TestCase):
     def lock(self):
         return {
-            "downloads": [{"path": "repository/a-1.tar.gz"}, {"path": "remote/x"}],
-            "repository": [{"file": "a-1.tar.gz", "from": "repository/a-1.tar.gz"}],
+            "downloads": [
+                {"path": "repository/a-1.tar.gz"},
+                {"path": "remote/x"},
+                {"path": "source/git-b"},
+            ],
+            "repository": [{"file": "b-3.tar.gz", "pack": {"from": "source/git-b", "subdir": ".", "root": "b-3"}}],
             "remotePackages": [{"uri": "https://e/x.tar.gz", "from": "remote/x", "package": "x-2"}],
             "systems": {
                 "x86_64-linux": {
                     "units": [
                         {"name": "a", "version": "1", "installed": False, "local": False},
                         {"name": "x", "version": "2", "installed": False, "local": False},
+                        {"name": "b", "version": "3", "installed": False, "local": False},
                         {"name": "base", "version": "4", "installed": True, "local": False},
                         {"name": "me", "version": "0", "installed": False, "local": True},
                     ]
@@ -163,19 +168,17 @@ class LockProblemsTest(unittest.TestCase):
     def test_consistent_lock(self):
         self.assertEqual(cli.lock_problems(self.lock()), [])
 
-    def test_missing_download(self):
+    def test_missing_pack_download(self):
         lock = self.lock()
-        lock["downloads"] = [{"path": "remote/x"}]
+        lock["downloads"] = [d for d in lock["downloads"] if d["path"] != "source/git-b"]
         self.assertEqual(
             cli.lock_problems(lock),
-            [
-                "the repository file a-1.tar.gz names no download repository/a-1.tar.gz",
-            ],
+            ["the repository file b-3.tar.gz names no download source/git-b"],
         )
 
     def test_unit_without_source(self):
         lock = self.lock()
-        lock["repository"] = []
+        lock["downloads"] = [d for d in lock["downloads"] if d["path"] != "repository/a-1.tar.gz"]
         self.assertIn(
             "the plan for x86_64-linux uses a-1, which no locked source provides",
             cli.lock_problems(lock),
@@ -185,20 +188,36 @@ class LockProblemsTest(unittest.TestCase):
 class ReadLockTest(unittest.TestCase):
     def read(self, text):
         with tempfile.TemporaryDirectory() as tmp:
-            (Path(tmp) / cli.LOCK_NAME).write_text(text)
-            return cli.read_lock(Path(tmp))
+            path = Path(tmp) / cli.LOCK_NAME
+            path.write_text(text)
+            return cli.read_lock(path)
+
+    def valid(self):
+        lock = {key: [] for key in cli.SECTIONS}
+        lock.update(version=cli.LOCK_VERSION, configuration={}, definition={}, systems={}, outputs={})
+        lock["hash"] = cli.content_hash(lock)
+        return lock
+
+    def test_valid(self):
+        self.assertEqual(self.read(json.dumps(self.valid()))["version"], cli.LOCK_VERSION)
 
     def test_malformed_json(self):
-        with self.assertRaisesRegex(cli.Failure, "not valid JSON.*relock"):
+        with self.assertRaisesRegex(cli.Failure, "not valid JSON.*cabal-purifier lock"):
             self.read("{ not json")
 
     def test_other_version(self):
-        with self.assertRaisesRegex(cli.Failure, "version 99.*relock"):
+        with self.assertRaisesRegex(cli.Failure, "version 99.*cabal-purifier lock"):
             self.read(json.dumps({"version": 99}))
 
     def test_missing_section(self):
-        with self.assertRaisesRegex(cli.Failure, "damaged: it has no definition"):
+        with self.assertRaisesRegex(cli.Failure, "damaged: it has no hash.*cabal-purifier lock"):
             self.read(json.dumps({"version": cli.LOCK_VERSION, "configuration": {}}))
+
+    def test_tampered(self):
+        lock = self.valid()
+        lock["externalPaths"] = ["../elsewhere"]
+        with self.assertRaisesRegex(cli.Failure, "does not match its hash.*cabal-purifier lock"):
+            self.read(json.dumps(lock))
 
 
 class OfflineProjectTest(unittest.TestCase):

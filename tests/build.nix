@@ -11,8 +11,11 @@
 }:
 let
   pkgs = import nixpkgs { };
-  buildCabalProject = pkgs.callPackage ../nix/lib/build-cabal-project.nix {
+  buildCabalProject = import ../nix/lib/build-cabal-project.nix {
     purifier = import ../nix/lib/purifier.nix { inherit pkgs purifier; };
   };
 in
-(buildCabalProject { src = /. + src; }).project
+(buildCabalProject {
+  inherit pkgs;
+  src = /. + src;
+}).project

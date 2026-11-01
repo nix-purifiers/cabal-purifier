@@ -1,0 +1,4 @@
+packages: .
+
+-- The freeze file pins an old async, and `cabal-purifier update`
+-- (tests/conformance-update.sh) resolves it again with the newest index.

@@ -1,5 +1,4 @@
 {
-  "cabalInstall": "3.16.1.0",
   "configuration": {
     "benchmarks": true,
     "tests": true
@@ -31,6 +30,7 @@
   "externalPaths": [
     "../shared-package"
   ],
+  "hash": "sha256-bm0nQ/ZPDJpOCvITvKXf9fcsnK8Oqc72+SeZCRYgcmQ=",
   "indexState": null,
   "outputs": {
     "packages": {
@@ -377,5 +377,5 @@
       ]
     }
   },
-  "version": 1
+  "version": 2
 }

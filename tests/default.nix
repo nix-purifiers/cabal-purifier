@@ -3,27 +3,37 @@
 # The checks: sandboxed builds of the fixtures under fixtures/, from their
 # committed lockfiles, and a run of what each build produced. Each
 # fixture's cabal-purifier.lock.json is written by `cabal-purifier lock` in
-# the fixture's directory. tests/interactive.sh covers what runs outside
-# the sandbox: the lock run, `cabal` and `publish`.
+# the fixture's directory; the external fixture keeps its lockfile outside
+# it, under external/.
+#
+# The conformance checks are those of the nix-purifiers contract that the
+# sandbox can run. The conformance checks of a stale, tampered, incomplete
+# and malformed lockfile evaluate the library with nix-instantiate inside
+# the build, so they see the error message and check that it names
+# `cabal-purifier lock`. CI runs the conformance checks that need the
+# network or Nix itself: conformance-relock, conformance-rebuild and
+# conformance-offline.
 #
 # The real-world checks build a pinned upstream project from a lockfile
 # under real-world/, which `cabal-purifier lock` wrote in a checkout of
 # that project.
 {
   pkgs,
-  overlay,
+  # lib.cabal-purifier.buildCabalProject of the flake.
+  buildCabalProject,
   cli,
   # The source of ShellCheck v0.11.0 (tests/dependencies/flake.nix).
   shellcheck,
 }:
 let
-  purified = pkgs.extend overlay;
-  inherit (purified) lib;
+  inherit (pkgs) lib;
+
+  build = args: buildCabalProject ({ inherit pkgs; } // args);
 
   # Runs a program from a build and checks its output.
   runs =
     name: program: expected:
-    purified.runCommand name { } ''
+    pkgs.runCommand name { } ''
       output=$(${program})
       echo "$output"
       case "$output" in
@@ -33,47 +43,79 @@ let
       touch "$out"
     '';
 
-  app = purified.buildCabalProject {
+  app = build {
     src = ./fixtures/app;
     name = "fixture-app";
   };
 
-  workspace = purified.buildCabalProject {
+  workspace = build {
     src = ./fixtures/workspace;
     name = "fixture-workspace";
     externalPaths."../shared-package" = ./fixtures/shared-package;
-    doCheck = true;
   };
   greeting = workspace.packages.greeting;
 
-  shellcheckProject = purified.buildCabalProject {
+  external = build {
+    src = ./fixtures/external;
+    lockFile = ./external/cabal-purifier.lock.json;
+    name = "fixture-external";
+  };
+
+  shellcheckProject = build {
     src = shellcheck;
     lockFile = ./real-world/shellcheck/cabal-purifier.lock.json;
     name = "shellcheck";
   };
   shellcheckPackage = shellcheckProject.packages.ShellCheck;
 
-  # The negative checks: the app fixture with a lockfile changed the ways
-  # a stale or damaged lockfile is wrong. Each must fail to evaluate, with
-  # the library's message, before anything builds.
+  # The lockfiles that the conformance checks give the library are the
+  # lockfile of the app fixture, changed the ways a lockfile goes wrong.
   appLock = lib.importJSON ./fixtures/app/cabal-purifier.lock.json;
-  withLock =
-    name: lock: args:
-    purified.buildCabalProject (
-      {
-        src = ./fixtures/app;
-        lockFile = builtins.toFile "${name}.lock.json" (builtins.toJSON lock);
-      }
-      // args
-    );
-  evaluationFails =
-    name: build:
-    assert !(builtins.tryEval build.project.drvPath).success;
-    purified.runCommand name { } "touch $out";
+  lockText = name: lock: builtins.toFile "${name}.lock.json" (builtins.toJSON lock);
+  # A changed lockfile with its hash made to match again, as for a
+  # lockfile that `cabal-purifier lock` wrote incomplete.
+  rehashed =
+    lock:
+    lock
+    // {
+      hash = builtins.convertHash {
+        hash = builtins.hashString "sha256" (builtins.toJSON (removeAttrs lock [ "hash" ]));
+        hashAlgo = "sha256";
+        toHashFormat = "sri";
+      };
+    };
   withoutDownload =
     path: appLock // { downloads = builtins.filter (d: d.path != path) appLock.downloads; };
-  withoutRepositoryFile =
-    file: appLock // { repository = builtins.filter (f: f.file != file) appLock.repository; };
+
+  # Evaluates readLock (read-lock.nix) of `lockFile` for the project
+  # `project` in the build, and fails evaluation with its problems as
+  # checkLock does. The check passes when the evaluation fails with a
+  # message that holds `expected` and names `cabal-purifier lock`.
+  lockFails =
+    name:
+    {
+      lockFile,
+      project ? ./fixtures/app,
+      expected,
+    }:
+    pkgs.runCommand name { nativeBuildInputs = [ pkgs.nix ]; } ''
+      export HOME="$TMPDIR" NIX_STATE_DIR="$TMPDIR/state"
+      mkdir lib
+      cp ${../nix/lib/read-lock.nix} lib/read-lock.nix
+      cp ${../nix/lib/lock-version.nix} lib/lock-version.nix
+      cp ${lockFile} lock.json
+      cp -r ${project} project
+      expression="let lock = import $PWD/lib/read-lock.nix { lockFile = $PWD/lock.json; src = $PWD/project; }; in
+        if lock.problems == [ ] then lock.purifier else throw (builtins.concatStringsSep \"\n\" lock.problems)"
+      if nix-instantiate --eval --store dummy:// --expr "$expression" 2> error; then
+        echo "${name}: the lockfile evaluated" >&2
+        exit 1
+      fi
+      cat error
+      grep -qF ${lib.escapeShellArg expected} error
+      grep -qF 'Run `cabal-purifier lock`' error
+      touch "$out"
+    '';
 in
 {
   inherit cli;
@@ -81,11 +123,11 @@ in
   # The unit tests of the lock run, the offline project copy and the plan
   # check (tests/unit).
   unit =
-    purified.runCommand "unit-tests"
+    pkgs.runCommand "unit-tests"
       {
         nativeBuildInputs = [
-          purified.python3
-          purified.darcs
+          pkgs.python3
+          pkgs.darcs
         ];
         CABAL_PURIFIER_ROOT = ../.;
       }
@@ -104,69 +146,119 @@ in
 
   # greet builds against the project's own library, a local package
   # outside the project, tagged from its git source repository and
-  # data-default-class from a package URL. The `project` build runs the
-  # test suite (doCheck).
+  # data-default-class from a package URL.
   fixture-workspace =
     runs "fixture-workspace-runs" "${workspace.packages.app.executables.greet}/bin/greet"
       "hello workspace";
 
-  # The test suite as its own output, run in a copy of its package.
-  fixture-workspace-test = greeting.testSuites.spec;
+  # The project's test run: the greeting library's test suite, run in a
+  # copy of its package.
+  fixture-workspace-tests = workspace.tests;
 
   fixture-workspace-bench =
     runs "fixture-workspace-bench" "${greeting.benchmarks.bench}/bin/bench"
       "8893";
 
-  # The source tarball `cabal upload` publishes holds the package
-  # description and the library's module.
-  fixture-workspace-sdist =
-    purified.runCommand "fixture-workspace-sdist" { tarball = greeting.sdist.tarball; }
+  # The release that `cabal-purifier publish` uploads holds the source
+  # tarball of each package, and the tarball holds the package description
+  # and the library's module.
+  fixture-workspace-release =
+    pkgs.runCommand "fixture-workspace-release"
+      {
+        inherit (workspace) release;
+        fetches = builtins.length workspace.fetches;
+      }
       ''
-        files=$(tar -tzf "$tarball")
+        ls "$release"
+        test -e "$release/app-0.1.0.tar.gz"
+        files=$(tar -tzf "$release/greeting-0.2.0.tar.gz")
         echo "$files"
         echo "$files" | grep -qx greeting-0.2.0/greeting.cabal
         echo "$files" | grep -qx greeting-0.2.0/src/Greeting.hs
+        test "$fetches" -gt 0
         touch "$out"
       '';
 
-  # The control for the negative checks: the unchanged lockfile, passed
-  # the same way, evaluates.
-  negative-control =
-    assert (builtins.tryEval (withLock "unchanged" appLock { }).project.drvPath).success;
-    purified.runCommand "negative-control" { } "touch $out";
+  # The documentation tarball for Hackage holds the module's page.
+  fixture-workspace-docs =
+    pkgs.runCommand "fixture-workspace-docs" { tarball = greeting.docs.tarball; }
+      ''
+        files=$(tar -tzf "$tarball")
+        echo "$files" | grep -qx 'greeting-0.2.0-docs/Greeting.html'
+        touch "$out"
+      '';
 
-  # A package description that changed since the lock.
-  negative-stale-lock = evaluationFails "negative-stale-lock" (
-    withLock "stale" (
-      appLock
-      // {
-        definition = appLock.definition // {
-          "hello.cabal" = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-        };
-      }
-    ) { }
-  );
+  # The stale fixture is the app fixture with a changed hello.cabal, so the
+  # lockfile of the app fixture is older than it.
+  conformance-stale = lockFails "conformance-stale" {
+    lockFile = ./fixtures/app/cabal-purifier.lock.json;
+    project = ./fixtures/stale;
+    expected = "hello.cabal changed since `cabal-purifier lock` wrote it";
+  };
 
-  # A repository file that names a download the lock does not hold.
-  negative-missing-download = evaluationFails "negative-missing-download" (
-    withLock "missing-download" (withoutDownload "repository/random-1.3.1.tar.gz") { }
-  );
+  # A lockfile whose content changed after the lock, and one whose hash
+  # changed.
+  conformance-tampered = pkgs.linkFarm "conformance-tampered" [
+    {
+      name = "content";
+      path = lockFails "conformance-tampered-content" {
+        lockFile = lockText "tampered-content" (
+          appLock
+          // {
+            downloads = map (
+              d: if d.path == "repository/random-1.3.1.tar.gz" then d // { url = "https://example.org/"; } else d
+            ) appLock.downloads;
+          }
+        );
+        expected = "does not match its hash";
+      };
+    }
+    {
+      name = "hash";
+      path = lockFails "conformance-tampered-hash" {
+        lockFile = lockText "tampered-hash" (
+          appLock // { hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; }
+        );
+        expected = "does not match its hash";
+      };
+    }
+  ];
 
-  # A package of the plan that no locked source provides.
-  negative-missing-source = evaluationFails "negative-missing-source" (
-    withLock "missing-source" (withoutRepositoryFile "random-1.3.1.tar.gz") { }
-  );
+  # A lockfile without the download of a package its plan uses.
+  conformance-missing = lockFails "conformance-missing" {
+    lockFile = lockText "missing" (rehashed (withoutDownload "repository/random-1.3.1.tar.gz"));
+    expected = "uses random-1.3.1, which no locked source provides";
+  };
 
-  # A system the lock has no plan for.
-  negative-unknown-system = evaluationFails "negative-unknown-system" (
-    withLock "unknown-system" appLock { system = "riscv64-linux"; }
-  );
+  # A lockfile that is valid JSON but not a lockfile.
+  conformance-malformed = lockFails "conformance-malformed" {
+    lockFile = builtins.toFile "malformed.lock.json" (builtins.toJSON { version = 2; });
+    expected = "it has no hash";
+  };
+
+  # The external fixture holds only Cabal's own files, and its lockfile is
+  # kept outside it.
+  conformance-external =
+    assert !(builtins.pathExists ./fixtures/external/cabal-purifier.lock.json);
+    runs "conformance-external" "${external.packages.external.executables.external}/bin/external"
+      "hello external";
+
+  # A system the lock has no plan for fails evaluation.
+  negative-unknown-system =
+    assert
+      !(builtins.tryEval
+        (build {
+          src = ./fixtures/app;
+          system = "riscv64-linux";
+        }).project.drvPath
+      ).success;
+    pkgs.runCommand "negative-unknown-system" { } "touch $out";
 
   # ShellCheck v0.11.0, built against the 70 downloads its lockfile
   # records, reports its version and finds the unquoted expansion
   # (SC2086) in a script.
   real-world-shellcheck =
-    purified.runCommand "real-world-shellcheck"
+    pkgs.runCommand "real-world-shellcheck"
       {
         shellcheck = "${shellcheckPackage.executables.shellcheck}/bin/shellcheck";
       }
@@ -184,14 +276,5 @@ in
       '';
 
   # ShellCheck's own test suite.
-  real-world-shellcheck-test = shellcheckPackage.testSuites.test-shellcheck;
-
-  # The documentation tarball for Hackage holds the module's page.
-  fixture-workspace-docs =
-    purified.runCommand "fixture-workspace-docs" { tarball = greeting.docs.tarball; }
-      ''
-        files=$(tar -tzf "$tarball")
-        echo "$files" | grep -qx 'greeting-0.2.0-docs/Greeting.html'
-        touch "$out"
-      '';
+  real-world-shellcheck-tests = shellcheckProject.tests;
 }
