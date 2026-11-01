@@ -17,8 +17,20 @@ In the project root, which has a `cabal.project` or a `.cabal` file:
 nix run github:nix-purifiers/cabal-purifier -- lock
 ```
 
-This writes `cabal-purifier.lock.json`. Commit it. Then build the project
-with the flake's builder, `lib.cabal-purifier.buildCabalProject`:
+This writes `cabal-purifier.lock.json`. Commit it. The overlay of the
+flake, `overlays.default`, adds `buildCabalProject` to a package set, and a
+package written for `callPackage` takes it by name:
+
+```nix
+# package.nix
+{ buildCabalProject, pkg-config, zlib }:
+buildCabalProject {
+  src = ./.;
+  # Libraries outside Cabal, such as zlib for `pkgconfig-depends: zlib`.
+  nativeBuildInputs = [ pkg-config ];
+  buildInputs = [ zlib ];
+}
+```
 
 ```nix
 {
@@ -28,14 +40,11 @@ with the flake's builder, `lib.cabal-purifier.buildCabalProject`:
   outputs = { nixpkgs, cabal-purifier, ... }:
     let
       system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
-      project = cabal-purifier.lib.cabal-purifier.buildCabalProject {
-        inherit pkgs;
-        src = ./.;
-        # Libraries outside Cabal, such as zlib for `pkgconfig-depends: zlib`.
-        nativeBuildInputs = [ pkgs.pkg-config ];
-        buildInputs = [ pkgs.zlib ];
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [ cabal-purifier.overlays.default ];
       };
+      project = pkgs.callPackage ./package.nix { };
     in
     {
       packages.${system} = {
@@ -74,7 +83,7 @@ when it evaluates, without building anything:
 The builder also takes `ghc` (the default is the nixpkgs GHC of the
 version the lock names), `cabalFlags` for more arguments to every cabal
 command, `srcFilter`, `externalPaths` for local packages outside the
-project (see [Sources supported and refused](#sources-supported-and-refused)),
+project (see [Supported language repositories](#supported-language-repositories)),
 and `fetchers`. A company mirror or credentials go into
 `fetchers.fetchurl` (and `fetchers.fetchgit` for a private git
 repository), which the purifier library's `fetchEntry` calls with the
@@ -86,8 +95,7 @@ A flake that packages a project whose author does not change it keeps the
 lockfile outside the project tree and passes it as `lockFile`:
 
 ```nix
-cabal-purifier.lib.cabal-purifier.buildCabalProject {
-  inherit pkgs;
+pkgs.buildCabalProject {
   src = inputs.some-project;
   lockFile = ./locks/some-project.lock.json;
 }
@@ -100,7 +108,7 @@ precedence over the default, `cabal-purifier.lock.json` at the project
 root. The dev shell of the flake can set the variable to the same path, so
 that a developer runs the commands with no flag.
 
-## Everyday loop
+## Development loop
 
 ```zsh
 eval "$(nix run github:nix-purifiers/cabal-purifier -- prefetch)"
@@ -108,7 +116,7 @@ cabal build
 cabal test
 ```
 
-`prefetch` (see [Offline work](#offline-work)) puts a `cabal` shim first
+`prefetch` (see [Working offline](#working-offline)) puts a `cabal` shim first
 on `PATH`. The shim runs cabal against the locked sources, so the
 everyday commands are cabal commands: `cabal build`, `cabal run my-app`
 and `cabal test`. When a project file changed since the lock, the shim
@@ -182,7 +190,7 @@ The command then checks the lock: it fetches the locked sources through
 Nix and plans the project again from those alone, and the plan must match
 the lock.
 
-## Offline work
+## Working offline
 
 ```zsh
 eval "$(nix run github:nix-purifiers/cabal-purifier -- prefetch)"
@@ -230,10 +238,10 @@ any difference.
 shim first on `PATH`. An editor started from that shell, or with that
 `PATH`, loads the project through the shim, so the build tool calls of the
 language server go to the locked sources and nothing is downloaded.
-A `.envrc` with the `eval` line from [Offline work](#offline-work) does
+A `.envrc` with the `eval` line from [Working offline](#working-offline) does
 the same for direnv.
 
-## Errors and fixes
+## Troubleshooting
 
 The Nix library checks the lockfile whenever it reads it (`readLock`
 returns the problems, and the builder fails evaluation with them), and
@@ -251,7 +259,7 @@ fixes it, which is `cabal-purifier lock` for every one of these:
 | A build whose plan differs from the lock | The build lists the packages that differ. |
 | A dependency newer than the recorded index state | Cabal cannot plan it, and the command says to run `cabal-purifier update`. |
 
-## Sources supported and refused
+## Supported language repositories
 
 Every kind of source that cabal-install fetches works:
 
@@ -275,8 +283,7 @@ Every kind of source that cabal-install fetches works:
   an argument, keyed by the path the lock gives it:
 
   ```nix
-  buildCabalProject {
-    inherit pkgs;
+  pkgs.buildCabalProject {
     src = ./.;
     externalPaths."../shared" = inputs.shared;
   }
@@ -329,9 +336,11 @@ does not keep one. A flake then builds the release from the lockfile:
   outputs = { nixpkgs, cabal-purifier, shellcheck, ... }:
     let
       system = "x86_64-linux";
-      pkgs = nixpkgs.legacyPackages.${system};
-      project = cabal-purifier.lib.cabal-purifier.buildCabalProject {
-        inherit pkgs;
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [ cabal-purifier.overlays.default ];
+      };
+      project = pkgs.buildCabalProject {
         src = shellcheck;
         lockFile = ./shellcheck.lock.json;
       };

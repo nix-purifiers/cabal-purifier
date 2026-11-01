@@ -1,15 +1,21 @@
 # SPDX-License-Identifier: MIT
 #
 # buildCabalProject: the sandboxed builds of a Cabal project, from the
-# lockfile `cabal-purifier lock` writes. The flake's library has it as
-# `lib.cabal-purifier.buildCabalProject`:
+# lockfile `cabal-purifier lock` writes.
 #
-#   (lib.cabal-purifier.buildCabalProject { inherit pkgs; src = ./.; })
-#     .packages.my-app.executables.my-app
+# The file is a package for callPackage: the first argument set is what it
+# takes from the package set, and the result is the builder. The
+# cabal-purifier overlay (`overlays.default`) adds it to the package set as
+# `buildCabalProject`, so a package written for callPackage takes it like
+# any other dependency:
 #
-# The first argument is the `purifier` library namespace of
-# github:nix-purifiers/purifier, which the library overlay passes. The
-# builder returns
+#   { buildCabalProject }:
+#   (buildCabalProject { src = ./.; }).packages.my-app.executables.my-app
+#
+# and `buildCabalProject.override` replaces what it takes from the set. The
+# `purifier` it takes is the library namespace of
+# github:nix-purifiers/purifier, which the overlay passes. The builder
+# returns
 #
 #   packages.<name>  for each package of the project:
 #     sdist                the source tarball `cabal sdist` makes, the file
@@ -37,10 +43,21 @@
 #
 # The lock records the outputs, so all of these are known when Nix
 # evaluates, without building anything.
-{ purifier }:
 {
-  # The package set the builds use.
   pkgs,
+  lib,
+  stdenv,
+  stdenvNoCC,
+  callPackage,
+  runCommand,
+  linkFarm,
+  writeText,
+  haskell,
+  cabal-install,
+  python3,
+  purifier,
+}:
+{
   # The root of the Cabal project, where cabal.project (or the package's
   # .cabal file) is.
   src,
@@ -73,21 +90,9 @@
   # { "../shared" = inputs.shared; }. The lock lists them as externalPaths.
   externalPaths ? { },
   # The system whose plan the builds use.
-  system ? pkgs.stdenv.hostPlatform.system,
+  system ? stdenv.hostPlatform.system,
 }:
 let
-  inherit (pkgs)
-    lib
-    stdenv
-    stdenvNoCC
-    runCommand
-    linkFarm
-    writeText
-    haskell
-    cabal-install
-    python3
-    ;
-
   # The lock in memory; checkLock fails evaluation with its problems.
   locked = purifier.checkLock (import ./read-lock.nix { inherit src lockFile; });
   lock = locked.cabal;
@@ -102,7 +107,7 @@ let
       haskell.compiler.${ghcAttr}
         or (throw "cabal-purifier: nixpkgs has no haskell.compiler.${ghcAttr} for the ${plan.compiler} the lock was made with; pass `ghc`.");
 
-  repository = pkgs.callPackage ./repository.nix {
+  repository = callPackage ./repository.nix {
     inherit
       purifier
       lock

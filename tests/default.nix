@@ -19,8 +19,9 @@
 # that project.
 {
   pkgs,
-  # lib.cabal-purifier.buildCabalProject of the flake.
-  buildCabalProject,
+  # The package set with the overlay of the flake applied, which has
+  # `buildCabalProject`.
+  purified,
   cli,
   # The source of ShellCheck v0.11.0 (tests/dependencies/flake.nix).
   shellcheck,
@@ -28,7 +29,7 @@
 let
   inherit (pkgs) lib;
 
-  build = args: buildCabalProject ({ inherit pkgs; } // args);
+  build = purified.buildCabalProject;
 
   # Runs a program from a build and checks its output.
   runs =

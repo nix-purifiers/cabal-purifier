@@ -19,7 +19,7 @@
 }:
 let
   pkgs = import nixpkgs { };
-  buildCabalProject = import ./build-cabal-project.nix {
+  buildCabalProject = pkgs.callPackage ./build-cabal-project.nix {
     purifier = import ./purifier.nix { inherit pkgs purifier; };
   };
   root = /. + src;
@@ -29,7 +29,6 @@ let
       lockFile = /. + lockFile;
     }).cabal;
   project = buildCabalProject {
-    inherit pkgs;
     src = root;
     lockFile = /. + lockFile;
     # Nix resolves the `..` of each path when it makes the path.
