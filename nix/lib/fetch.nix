@@ -16,9 +16,6 @@
 #     a Darcs checkout at the tag `rev` or at the state the Darcs context
 #     text `context` names (exactly one of the two is not null), as
 #     nixpkgs' fetchdarcs produces it
-#   { path, pijul = { url, rev }, hash }
-#     a Pijul checkout at the state `rev`, as nixpkgs' fetchpijul
-#     produces it
 #
 # By default a file is a fixed-output derivation on Nix's built-in fetcher
 # (the same derivation <nix/fetchurl.nix> makes). A fixed-output store
@@ -33,7 +30,6 @@
   fetchgit,
   fetchhg,
   fetchdarcs,
-  fetchpijul,
   fetchurl ? null,
 }:
 download:
@@ -67,13 +63,6 @@ else if download ? darcs then
         { context = builtins.toFile "darcs-context" download.darcs.context; }
     )
   )
-else if download ? pijul then
-  fetchpijul {
-    inherit name;
-    inherit (download.pijul) url;
-    state = download.pijul.rev;
-    inherit (download) hash;
-  }
 else if fetchurl != null then
   fetchurl {
     inherit name;

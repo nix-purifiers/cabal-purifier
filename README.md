@@ -185,10 +185,6 @@ Every kind of source that cabal-install fetches works:
 - **Mercurial and Darcs source repositories.** A Mercurial source needs a
   `tag`. A Darcs source without a `tag` is locked by the Darcs context of
   the checkout Cabal made in the lock run.
-- **Pijul source repositories**, with a `tag`, fetched by nixpkgs'
-  `fetchpijul`. The tests do not cover Pijul: Pijul fetches only from a
-  Pijul server, such as the Nest, and the tests have none to serve a
-  repository from.
 - **Package URLs** in `packages:`.
 - **Local packages inside the project**, which are the project's outputs,
   and **local tarballs and no-index repositories inside the project**.
@@ -203,8 +199,9 @@ Every kind of source that cabal-install fetches works:
   }
   ```
 
-cabal-install refuses to sync Subversion, Bazaar and CVS source
-repositories ("sync repo not yet supported"), so a project cannot use
+cabal-install refuses to sync Subversion, Bazaar, CVS and Pijul source
+repositories (`cabal update` fails with "sync repo not yet supported", or
+with `SourceRepoRepoTypeUnsupported` for Pijul), so a project cannot use
 them and there is nothing of those kinds to lock.
 
 ### Development

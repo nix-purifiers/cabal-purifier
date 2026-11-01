@@ -22,7 +22,6 @@
   fetchgit,
   fetchhg,
   fetchdarcs,
-  fetchpijul,
   gnutar,
   gzip,
   lockFile,
@@ -39,7 +38,6 @@ let
       fetchgit
       fetchhg
       fetchdarcs
-      fetchpijul
       fetchurl
       ;
   };

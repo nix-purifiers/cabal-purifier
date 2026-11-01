@@ -352,25 +352,10 @@ def lock_source_repository(repo, name, version, checkouts):
             "darcs": {"url": location, "rev": tag, "context": context},
             "hash": nix_fetcher_hash(expr),
         }
-    elif kind == "pijul":
-        if not tag:
-            raise Failure(
-                f"the Pijul source of {name} names no tag; give it a `tag`, the state the "
-                "lock pins"
-            )
-        expr = (
-            f"(import {NIXPKGS} {{}}).fetchpijul {{ url = {json.dumps(location)}; "
-            f"state = {json.dumps(tag)}; hash = \"\"; }}"
-        )
-        download = {
-            "path": source_path("pijul", location, tag),
-            "pijul": {"url": location, "rev": tag},
-            "hash": nix_fetcher_hash(expr),
-        }
     else:
         raise Failure(
             f"{name} comes from a {kind} source repository. cabal-install syncs only git, "
-            "Mercurial, Darcs and Pijul source repositories, so there is nothing to lock."
+            "Mercurial and Darcs source repositories, so there is nothing to lock."
         )
     pack = {"from": download["path"], "subdir": subdir, "root": f"{name}-{version}"}
     return download, pack
