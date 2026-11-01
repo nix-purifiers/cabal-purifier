@@ -18,36 +18,52 @@ nix run github:nix-purifiers/cabal-purifier -- lock
 ```
 
 This writes `cabal-purifier.lock.json`. Commit it to the repository of the
-project, next to `cabal.project.freeze` when the project has one. The
-overlay of the flake, `overlays.default`, adds one attribute to a package
-set, the scope `cabal-purifier`, which holds the builder
-`buildCabalProject`. A package written for `callPackage` takes the scope by
-name:
+project, next to `cabal.project.freeze` when the project has one. Then
+build the project from its directory, with no Nix file added to it:
 
-```nix
-# package.nix
-{ cabal-purifier, pkg-config, zlib }:
-cabal-purifier.buildCabalProject {
-  src = ./.;
-  # Libraries outside Cabal, such as zlib for `pkgconfig-depends: zlib`.
-  nativeBuildInputs = [ pkg-config ];
-  buildInputs = [ zlib ];
-}
+```zsh
+nix build --impure --expr '
+  let
+    purifier = builtins.getFlake "github:nix-purifiers/cabal-purifier";
+    pkgs = import purifier.inputs.nixpkgs {
+      system = builtins.currentSystem;
+      overlays = [ purifier.overlays.default ];
+    };
+  in
+  (pkgs.cabal-purifier.buildCabalProject { src = ./.; }).packages.my-app.executables.my-app'
 ```
+
+This uses the purifier's pinned nixpkgs, matching the lock command above.
+To build with ambient `<nixpkgs>` from your Nix search path instead,
+replace `import purifier.inputs.nixpkgs` with `import <nixpkgs>`.
+Both forms need no Nix files in your project. The build tool and language
+versions must match the lockfile; with ambient nixpkgs, lock with the
+purifier from that package set or pass a compatible toolchain to the builder.
+
+The overlay of the flake, `overlays.default`, adds one attribute to a
+package set, the scope `cabal-purifier`, which holds the builder
+`buildCabalProject`. A project whose authors want a flake can package
+itself with the builder. The flake lives in the repository of the project
+or in another one, and it calls the builder directly:
 
 ```nix
 {
   inputs.cabal-purifier.url = "github:nix-purifiers/cabal-purifier";
   inputs.nixpkgs.follows = "cabal-purifier/nixpkgs";
 
-  outputs = { nixpkgs, cabal-purifier, ... }:
+  outputs = { nixpkgs, cabal-purifier, self, ... }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
         inherit system;
         overlays = [ cabal-purifier.overlays.default ];
       };
-      project = pkgs.callPackage ./package.nix { };
+      project = pkgs.cabal-purifier.buildCabalProject {
+        src = self;
+        # Libraries outside Cabal, such as zlib for `pkgconfig-depends: zlib`.
+        nativeBuildInputs = [ pkgs.pkg-config ];
+        buildInputs = [ pkgs.zlib ];
+      };
     in
     {
       packages.${system} = {
@@ -338,39 +354,28 @@ nix run github:nix-purifiers/cabal-purifier -- lock --lockfile ../shellcheck.loc
 ```
 
 The lockfile goes outside the checkout, because the author of ShellCheck
-does not keep one. A flake then builds the release from the lockfile:
+does not keep one. Build the release from the checkout, with the lockfile
+passed to the builder:
 
-```nix
-{
-  inputs.cabal-purifier.url = "github:nix-purifiers/cabal-purifier";
-  inputs.nixpkgs.follows = "cabal-purifier/nixpkgs";
-  inputs.shellcheck = {
-    url = "github:koalaman/shellcheck/v0.11.0";
-    flake = false;
-  };
-
-  outputs = { nixpkgs, cabal-purifier, shellcheck, ... }:
-    let
-      system = "x86_64-linux";
-      pkgs = import nixpkgs {
-        inherit system;
-        overlays = [ cabal-purifier.overlays.default ];
-      };
-      project = pkgs.cabal-purifier.buildCabalProject {
-        src = shellcheck;
-        lockFile = ./shellcheck.lock.json;
-      };
-    in
-    {
-      packages.${system}.default = project.packages.ShellCheck.executables.shellcheck;
-      checks.${system}.tests = project.tests;
+```zsh
+nix build --impure --expr '
+  let
+    purifier = builtins.getFlake "github:nix-purifiers/cabal-purifier";
+    pkgs = import purifier.inputs.nixpkgs {
+      system = builtins.currentSystem;
+      overlays = [ purifier.overlays.default ];
     };
-}
+  in
+  (pkgs.cabal-purifier.buildCabalProject {
+    src = ./.;
+    lockFile = ../shellcheck.lock.json;
+  }).packages.ShellCheck.executables.shellcheck'
 ```
 
-`nix build` builds `shellcheck` in the sandbox, and `nix flake check` runs
-the test suite of ShellCheck. To work on ShellCheck itself, run this in
-the checkout, and then use `cabal build` and `cabal test` as usual:
+`./result/bin/shellcheck` is ShellCheck, built in the sandbox. To run its
+test suite, build `.tests` of the same project in place of the executable.
+To work on ShellCheck itself, run this in the checkout, and then use
+`cabal build` and `cabal test` as usual:
 
 ```zsh
 eval "$(nix run github:nix-purifiers/cabal-purifier -- prefetch --lockfile ../shellcheck.lock.json)"
