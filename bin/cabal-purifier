@@ -259,8 +259,26 @@ def nix_fetcher_hash(expression):
     return match.group(1)
 
 
-def lock_source_repository(repo, name, version):
-    """The download and the packing of a `source-repository-package`."""
+def source_path(kind, *parts):
+    """The download path of a source checkout: the kind and a digest of
+    what names the checkout."""
+    digest = hashlib.sha256("\0".join(p or "" for p in parts).encode()).hexdigest()[:16]
+    return f"source/{kind}-{digest}"
+
+
+def darcs_context(checkouts):
+    """The Darcs context of the checkout Cabal made in the lock run, which
+    names the repository's state when the source names no tag."""
+    for checkout in checkouts:
+        if (checkout / "_darcs").is_dir():
+            return run(["darcs", "log", "--context", "--repodir", checkout], capture=True)
+    raise Failure("found no Darcs checkout of the lock run to take the context from")
+
+
+def lock_source_repository(repo, name, version, checkouts):
+    """The download and the packing of a `source-repository-package`.
+    `checkouts` are the directories where Cabal checked out the package's
+    source repositories in the lock run."""
     kind = repo["type"]
     location = repo["location"]
     tag = repo.get("tag") or repo.get("branch")
@@ -270,37 +288,65 @@ def lock_source_repository(repo, name, version):
         rev, hash_ = prefetch_git(url, tag or "HEAD")
         download = {
             "path": f"source/git-{rev[:16]}",
-            "git": {"url": url, "rev": rev, "submodules": True, "leaveDotGit": False},
+            "git": {
+                "url": url,
+                "rev": rev,
+                "submodules": True,
+                "leaveDotGit": False,
+                "commitObject": None,
+            },
             "hash": hash_,
         }
     elif kind in ("mercurial", "hg"):
         if not tag:
-            raise Failure(f"the Mercurial source of {name} names no tag")
+            raise Failure(
+                f"the Mercurial source of {name} names no tag; give it a `tag`, the "
+                "changeset the lock pins"
+            )
         expr = (
             f"(import {NIXPKGS} {{}}).fetchhg {{ url = {json.dumps(location)}; "
             f"rev = {json.dumps(tag)}; hash = \"\"; }}"
         )
         download = {
-            "path": f"source/hg-{hashlib.sha256((location + tag).encode()).hexdigest()[:16]}",
+            "path": source_path("hg", location, tag),
             "hg": {"url": location, "rev": tag},
             "hash": nix_fetcher_hash(expr),
         }
-    elif kind in ("svn", "subversion"):
-        if not tag:
-            raise Failure(f"the Subversion source of {name} names no tag (revision)")
+    elif kind == "darcs":
+        context = None if tag else darcs_context(checkouts)
+        pin = (
+            f"rev = {json.dumps(tag)};"
+            if tag
+            else f"context = builtins.toFile \"darcs-context\" {json.dumps(context)};"
+        )
         expr = (
-            f"(import {NIXPKGS} {{}}).fetchsvn {{ url = {json.dumps(location)}; "
-            f"rev = {json.dumps(tag)}; hash = \"\"; }}"
+            f"(import {NIXPKGS} {{}}).fetchdarcs {{ url = {json.dumps(location)}; "
+            f"{pin} hash = \"\"; }}"
         )
         download = {
-            "path": f"source/svn-{hashlib.sha256((location + tag).encode()).hexdigest()[:16]}",
-            "svn": {"url": location, "rev": tag},
+            "path": source_path("darcs", location, tag, context),
+            "darcs": {"url": location, "rev": tag, "context": context},
+            "hash": nix_fetcher_hash(expr),
+        }
+    elif kind == "pijul":
+        if not tag:
+            raise Failure(
+                f"the Pijul source of {name} names no tag; give it a `tag`, the state the "
+                "lock pins"
+            )
+        expr = (
+            f"(import {NIXPKGS} {{}}).fetchpijul {{ url = {json.dumps(location)}; "
+            f"state = {json.dumps(tag)}; hash = \"\"; }}"
+        )
+        download = {
+            "path": source_path("pijul", location, tag),
+            "pijul": {"url": location, "rev": tag},
             "hash": nix_fetcher_hash(expr),
         }
     else:
         raise Failure(
-            f"{name} comes from a {kind} source repository. The lock supports git, Mercurial "
-            "and Subversion source repositories."
+            f"{name} comes from a {kind} source repository. cabal-install syncs only git, "
+            "Mercurial, Darcs and Pijul source repositories, so there is nothing to lock."
         )
     pack = {"from": download["path"], "subdir": subdir, "root": f"{name}-{version}"}
     return download, pack
@@ -448,7 +494,10 @@ def make_lock(root, configuration):
                     else:
                         raise Failure(f"{pid} comes from a repository of type {repo['type']}")
                 elif kind == "source-repo":
-                    download, pack = lock_source_repository(src["source-repo"], name, version)
+                    checkouts = sorted((tmp / f"dist-{system}" / "src").glob(f"{name}-*"))
+                    download, pack = lock_source_repository(
+                        src["source-repo"], name, version, checkouts
+                    )
                     downloads[download["path"]] = download
                     repository[f"{pid}.tar.gz"] = {"file": f"{pid}.tar.gz", "pack": pack}
                 elif kind == "remote-tar":

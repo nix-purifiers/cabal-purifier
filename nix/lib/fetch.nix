@@ -6,13 +6,19 @@
 #   { path, url, mirrors, hash }
 #     a file, where hash is the SRI hash of the file and mirrors are other
 #     URLs that serve the same bytes
-#   { path, git = { url, rev, submodules, leaveDotGit }, hash }
+#   { path, git = { url, rev, submodules, leaveDotGit, commitObject }, hash }
 #     a git checkout, where hash is the SRI hash that nix-prefetch-git
-#     reports for it
+#     reports for it; Cabal's checkouts have no `.git`, so leaveDotGit is
+#     false and commitObject is null
 #   { path, hg = { url, rev }, hash }
-#   { path, svn = { url, rev }, hash }
-#     a Mercurial or Subversion checkout, as nixpkgs' fetchhg and fetchsvn
-#     produce it
+#     a Mercurial checkout, as nixpkgs' fetchhg produces it
+#   { path, darcs = { url, rev, context }, hash }
+#     a Darcs checkout at the tag `rev` or at the state the Darcs context
+#     text `context` names (exactly one of the two is not null), as
+#     nixpkgs' fetchdarcs produces it
+#   { path, pijul = { url, rev }, hash }
+#     a Pijul checkout at the state `rev`, as nixpkgs' fetchpijul
+#     produces it
 #
 # By default a file is a fixed-output derivation on Nix's built-in fetcher
 # (the same derivation <nix/fetchurl.nix> makes). A fixed-output store
@@ -26,7 +32,8 @@
   lock,
   fetchgit,
   fetchhg,
-  fetchsvn,
+  fetchdarcs,
+  fetchpijul,
   fetchurl ? null,
 }:
 download:
@@ -46,10 +53,25 @@ else if download ? hg then
     inherit (download.hg) url rev;
     inherit (download) hash;
   }
-else if download ? svn then
-  fetchsvn {
+else if download ? darcs then
+  fetchdarcs (
+    {
+      inherit name;
+      inherit (download.darcs) url;
+      inherit (download) hash;
+    }
+    // (
+      if download.darcs.rev != null then
+        { inherit (download.darcs) rev; }
+      else
+        { context = builtins.toFile "darcs-context" download.darcs.context; }
+    )
+  )
+else if download ? pijul then
+  fetchpijul {
     inherit name;
-    inherit (download.svn) url rev;
+    inherit (download.pijul) url;
+    state = download.pijul.rev;
     inherit (download) hash;
   }
 else if fetchurl != null then

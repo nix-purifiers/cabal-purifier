@@ -21,7 +21,8 @@
   runCommand,
   fetchgit,
   fetchhg,
-  fetchsvn,
+  fetchdarcs,
+  fetchpijul,
   gnutar,
   gzip,
   lockFile,
@@ -37,7 +38,8 @@ let
       lock
       fetchgit
       fetchhg
-      fetchsvn
+      fetchdarcs
+      fetchpijul
       fetchurl
       ;
   };

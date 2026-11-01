@@ -88,11 +88,13 @@ let
   lock = import ./lock.nix { inherit lockFile; };
 
   # The lock is stale when a project file it was made from has changed.
-  sri = file: builtins.convertHash {
-    hash = builtins.hashFile "sha256" file;
-    hashAlgo = "sha256";
-    toHashFormat = "sri";
-  };
+  sri =
+    file:
+    builtins.convertHash {
+      hash = builtins.hashFile "sha256" file;
+      hashAlgo = "sha256";
+      toHashFormat = "sri";
+    };
   staleFiles = lib.filter (
     f: !(builtins.pathExists (src + "/${f}")) || sri (src + "/${f}") != lock.definition.${f}
   ) (lib.attrNames lock.definition);
@@ -117,13 +119,15 @@ let
   # The constraints that make Cabal resolve to the locked plan: each
   # package at its locked version and flags, and each package the compiler
   # provides taken from the compiler.
-  flagText = flags: lib.concatStringsSep " " (lib.mapAttrsToList (f: on: (if on then "+" else "-") + f) flags);
+  flagText =
+    flags: lib.concatStringsSep " " (lib.mapAttrsToList (f: on: (if on then "+" else "-") + f) flags);
   constraintsOf =
     u:
     if u.installed then
       [ "any.${u.name} installed" ]
     else
-      [ "any.${u.name} ==${u.version}" ] ++ lib.optional (u.flags != { }) "any.${u.name} ${flagText u.flags}";
+      [ "any.${u.name} ==${u.version}" ]
+      ++ lib.optional (u.flags != { }) "any.${u.name} ${flagText u.flags}";
   constraints = writeText "cabal-purifier-constraints" (
     lib.concatMapStrings (c: c + "\n") (lib.concatMap constraintsOf plan.units)
   );
@@ -386,7 +390,9 @@ let
     sdist = mkSdist pkg p;
     docs = mkDocs pkg p;
     executables = lib.genAttrs p.executables (mkExecutable pkg);
-    testSuites = lib.optionalAttrs lock.configuration.tests (lib.genAttrs p.testSuites (mkTestSuite pkg p));
+    testSuites = lib.optionalAttrs lock.configuration.tests (
+      lib.genAttrs p.testSuites (mkTestSuite pkg p)
+    );
     benchmarks = lib.optionalAttrs lock.configuration.benchmarks (
       lib.genAttrs p.benchmarks (mkBenchmark pkg)
     );
