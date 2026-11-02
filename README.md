@@ -37,7 +37,8 @@ For persistent use, add these packages through your usual Nix configuration.
 ## Development loop
 
 ```zsh
-eval "$(nix run github:nix-purifiers/cabal-purifier -- prefetch)"
+nix shell 'github:nix-purifiers/cabal-purifier'
+eval "$(cabal-purifier prefetch)"
 cabal build
 cabal test
 ```
@@ -257,7 +258,8 @@ purifier from that package set or pass a compatible toolchain to the builder.
 ## Working offline
 
 ```zsh
-eval "$(nix run github:nix-purifiers/cabal-purifier -- prefetch)"
+nix shell 'github:nix-purifiers/cabal-purifier'
+eval "$(cabal-purifier prefetch)"
 ```
 
 `prefetch` realizes in the Nix store everything the lockfile lists for
@@ -385,10 +387,11 @@ package with a library, an executable and a test suite, and no
 release:
 
 ```zsh
+nix shell 'github:nix-purifiers/cabal-purifier'
 git clone --branch v0.11.0 \
   https://github.com/koalaman/shellcheck
 cd shellcheck
-nix run github:nix-purifiers/cabal-purifier -- lock --lockfile \
+cabal-purifier lock --lockfile \
   ../shellcheck.lock.json
 ```
 
@@ -416,7 +419,8 @@ To work on ShellCheck itself, run this in the checkout, and then use
 `cabal build` and `cabal test` as usual:
 
 ```zsh
-eval "$(nix run github:nix-purifiers/cabal-purifier -- prefetch --lockfile ../shellcheck.lock.json)"
+nix shell 'github:nix-purifiers/cabal-purifier'
+eval "$(cabal-purifier prefetch --lockfile ../shellcheck.lock.json)"
 ```
 
 ## Credits
