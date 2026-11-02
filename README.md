@@ -5,12 +5,6 @@ Nix-resolved dependencies. Use the normal build and test commands in your
 working tree; building the project itself in the Nix sandbox is an
 optional next step.
 
-It follows the [purifier contract](https://github.com/nix-purifiers/purifier/blob/main/CONTRACT.md).
-
-cabal-purifier is part of [nix-purifiers](https://nix-purifiers.github.io).
-It meets the [purifier contract](https://github.com/nix-purifiers/purifier/blob/main/CONTRACT.md)
-that every nix-purifier meets.
-
 ## Installation
 
 Install the integration into your Nix profile once:
