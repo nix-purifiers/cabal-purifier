@@ -576,7 +576,7 @@ def make_lock(
         (tmp / "cabal").mkdir()
         (tmp / "cabal" / "config").write_text(
             "repository hackage.haskell.org\n"
-            "  url: http://hackage.haskell.org/\n"
+            "  url: https://hackage.haskell.org/\n"
             "  secure: True\n"
             f"remote-repo-cache: {repo_cache}\n"
         )
