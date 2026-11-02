@@ -377,5 +377,36 @@ class DarcsContextTest(unittest.TestCase):
             cli.darcs_context(checkouts, str(self.tmp / "elsewhere"))
 
 
+
+class InstalledWrapperTest(unittest.TestCase):
+    def test_unlocked_wrapper_skips_its_own_profile_link(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            own = root / "package" / "bin"
+            profile = root / "profile" / "bin"
+            stock = root / "stock"
+            for path in (own, profile, stock):
+                path.mkdir(parents=True)
+            (own / "cabal").write_text("#!/bin/sh\nexit 99\n")
+            (own / "cabal").chmod(0o755)
+            (profile / "cabal").symlink_to(own / "cabal")
+            native = stock / "cabal"
+            native.write_text(
+                "#!" + sys.executable + "\n"
+                "import json, sys\nprint(json.dumps(sys.argv[1:]))\nsys.exit(23)\n"
+            )
+            native.chmod(0o755)
+            args = ["build", "argument with spaces", "--example=a=b"]
+            env = dict(os.environ, CABAL_PURIFIER_SHIM="1", CABAL_PURIFIER_SELF=str(own / "cabal-purifier"))
+            env["PATH"] = os.pathsep.join([str(profile), str(stock), env.get("PATH", "")])
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "bin/cabal-purifier"), *args],
+                cwd=root, env=env, capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 23, result.stderr)
+            self.assertEqual(json.loads(result.stdout), args)
+            self.assertIn("warning:", result.stderr)
+            self.assertIn("impurely", result.stderr)
+
 if __name__ == "__main__":
     unittest.main()

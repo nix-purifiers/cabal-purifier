@@ -19,9 +19,10 @@ Install the integration into your Nix profile once:
 nix profile install 'github:nix-purifiers/cabal-purifier'
 ```
 
-The CLI installs the project-local native-tool wrapper during `prefetch`.
-Activate its PATH as shown below. If its lockfile is later removed, the
-wrapper warns on standard error and delegates to the ordinary tool.
+This installs both `cabal-purifier` and the native `cabal` wrapper. With a
+purifier lock, the wrapper uses Nix-resolved dependencies. Without one, it
+warns on standard error and runs ordinary, impure Cabal, including outside a
+project. `prefetch` also supplies a project-local wrapper and toolchain.
 
 `nix shell` makes an integration available temporarily instead of installing
 it. Keep using the activation steps below where a project environment or

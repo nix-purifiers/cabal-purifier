@@ -49,6 +49,8 @@ stdenvNoCC.mkDerivation {
           nix-prefetch-git
         ]
       }
+    makeWrapper "$out/bin/cabal-purifier" "$out/bin/cabal" \
+      --set CABAL_PURIFIER_SHIM 1
     runHook postInstall
   '';
   meta = {

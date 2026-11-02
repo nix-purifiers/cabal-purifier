@@ -1197,10 +1197,13 @@ def real_cabal(root):
     itself."""
     shims = (work_dir(root) / "bin").resolve()
     path = [p for p in os.environ.get("PATH", "").split(os.pathsep) if p and Path(p).resolve() != shims]
-    found = shutil.which("cabal", path=os.pathsep.join(path))
-    if not found:
-        raise Failure("no cabal on PATH")
-    return found
+    own = os.environ.get("CABAL_PURIFIER_SELF")
+    installed = Path(own).with_name("cabal").resolve() if own else None
+    for directory in path:
+        found = shutil.which("cabal", path=directory)
+        if found and Path(found).resolve() != installed:
+            return found
+    raise Failure("no ordinary cabal on PATH")
 
 
 def verb_publish(root, path, tool, args):
@@ -1276,7 +1279,10 @@ def take_option(args, name):
 def main(argv):
     try:
         if os.environ.get("CABAL_PURIFIER_SHIM") == "1":
-            root = project_root()
+            try:
+                root = project_root()
+            except Failure:
+                root = Path.cwd()
             shim_cabal(root, lockfile_path(root, None), tool_lockfile_path(None), argv)
             return 0
         if not argv or argv[0] in ("-h", "--help", "help"):
