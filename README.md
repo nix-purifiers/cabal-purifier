@@ -148,7 +148,13 @@ or in another one, and it calls the builder directly:
   inputs.cabal-purifier.url = "github:nix-purifiers/cabal-purifier";
   inputs.nixpkgs.follows = "cabal-purifier/nixpkgs";
 
-  outputs = { nixpkgs, cabal-purifier, self, ... }:
+  outputs =
+    {
+      nixpkgs,
+      cabal-purifier,
+      self,
+      ...
+    }:
     let
       system = "x86_64-linux";
       pkgs = import nixpkgs {
@@ -240,15 +246,15 @@ For an ad hoc build, the builder can also be evaluated directly from the
 project root. Replace the example package name with one from your project:
 
 ```zsh
-nix build --impure --expr '
-  let
-    purifier = builtins.getFlake "github:nix-purifiers/cabal-purifier";
-    pkgs = import purifier.inputs.nixpkgs {
-      system = builtins.currentSystem;
-      overlays = [ purifier.overlays.default ];
-    };
-  in
-  (pkgs.cabal-purifier.buildCabalProject { src = ./.; }).packages.my-app.executables.my-app'
+nix build --impure --expr 'let
+  purifier = builtins.getFlake "github:nix-purifiers/cabal-purifier";
+  pkgs = import purifier.inputs.nixpkgs {
+    system = builtins.currentSystem;
+    overlays = [ purifier.overlays.default ];
+  };
+in
+(pkgs.cabal-purifier.buildCabalProject { src = ./.; })
+.packages.my-app.executables.my-app'
 ```
 
 This uses the purifier's pinned nixpkgs, matching the lock command above.
@@ -389,9 +395,11 @@ package with a library, an executable and a test suite, and no
 release:
 
 ```zsh
-git clone --branch v0.11.0 https://github.com/koalaman/shellcheck
+git clone --branch v0.11.0 \
+  https://github.com/koalaman/shellcheck
 cd shellcheck
-nix run github:nix-purifiers/cabal-purifier -- lock --lockfile ../shellcheck.lock.json
+nix run github:nix-purifiers/cabal-purifier -- lock --lockfile \
+  ../shellcheck.lock.json
 ```
 
 The lockfile goes outside the checkout, because the author of ShellCheck
@@ -399,18 +407,17 @@ does not keep one. Build the release from the checkout, with the lockfile
 passed to the builder:
 
 ```zsh
-nix build --impure --expr '
-  let
-    purifier = builtins.getFlake "github:nix-purifiers/cabal-purifier";
-    pkgs = import purifier.inputs.nixpkgs {
-      system = builtins.currentSystem;
-      overlays = [ purifier.overlays.default ];
-    };
-  in
-  (pkgs.cabal-purifier.buildCabalProject {
-    src = ./.;
-    lockFile = ../shellcheck.lock.json;
-  }).packages.ShellCheck.executables.shellcheck'
+nix build --impure --expr 'let
+  purifier = builtins.getFlake "github:nix-purifiers/cabal-purifier";
+  pkgs = import purifier.inputs.nixpkgs {
+    system = builtins.currentSystem;
+    overlays = [ purifier.overlays.default ];
+  };
+in
+(pkgs.cabal-purifier.buildCabalProject {
+  src = ./.;
+  lockFile = ../shellcheck.lock.json;
+}).packages.ShellCheck.executables.shellcheck'
 ```
 
 `./result/bin/shellcheck` is ShellCheck, built in the sandbox. To run its
