@@ -430,13 +430,8 @@ eval "$(nix run github:nix-purifiers/cabal-purifier -- prefetch --lockfile ../sh
 
 ## Credits
 
-cabal-purifier follows the design of
-[sbt-nix-backend](https://github.com/nix-purifiers/sbt-purifier): a lock run
-with empty caches that records every download, a builder that runs the
-tool itself in the sandbox from that lockfile, an offline interactive mode
-on the same locked files, and publishing what Nix built. The
-[cargo (libnix)](https://github.com/nixcloud/cargo) project by nixcloud
-inspired the nix-purifiers family.
+The purifier idea was inspired by nixcloud's
+[cargo (libnix)](https://github.com/nixcloud/cargo).
 
 ## License
 
