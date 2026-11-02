@@ -136,7 +136,8 @@ or in another one, and it calls the builder directly:
 
 ```nix
 {
-  inputs.cabal-purifier.url = "github:nix-purifiers/cabal-purifier";
+  inputs.cabal-purifier.url =
+    "github:nix-purifiers/cabal-purifier";
   inputs.nixpkgs.follows = "cabal-purifier/nixpkgs";
 
   outputs =
@@ -154,14 +155,16 @@ or in another one, and it calls the builder directly:
       };
       project = pkgs.cabal-purifier.buildCabalProject {
         src = self;
-        # Libraries outside Cabal, such as zlib for `pkgconfig-depends: zlib`.
+        # Libraries outside Cabal, such as zlib for
+        # `pkgconfig-depends: zlib`.
         nativeBuildInputs = [ pkgs.pkg-config ];
         buildInputs = [ pkgs.zlib ];
       };
     in
     {
       packages.${system} = {
-        default = project.packages.my-app.executables.my-app;
+        default =
+          project.packages.my-app.executables.my-app;
         release = project.release;
       };
       checks.${system}.tests = project.tests;
@@ -215,8 +218,10 @@ the builder:
 pkgs.cabal-purifier.buildCabalProject {
   src = inputs.some-project;
   lockFile = ./locks/some-project.lock.json;
-  # A cabal.project.freeze that replaces the one in `src`, when needed.
-  cabalFreeze = ./locks/some-project.cabal.project.freeze;
+  # A cabal.project.freeze that replaces the one in
+  # `src`, when needed.
+  cabalFreeze =
+    ./locks/some-project.cabal.project.freeze;
 }
 ```
 
@@ -349,11 +354,11 @@ Every kind of source that cabal-install fetches works:
   an argument, keyed by the path the lock gives it:
 
   ```nix
-  pkgs.cabal-purifier.buildCabalProject {
-    src = ./.;
-    externalPaths."../shared" = inputs.shared;
-  }
-  ```
+pkgs.cabal-purifier.buildCabalProject {
+  src = ./.;
+  externalPaths."../shared" = inputs.shared;
+}
+```
 
 The command refuses these:
 
