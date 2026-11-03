@@ -18,7 +18,10 @@ for tool in $(nix build --inputs-from "$root" 'nixpkgs#ghc' 'nixpkgs#cabal-insta
   PATH="$tool/bin:$PATH"
 done
 export PATH
+# The physical path: the command names the project by it, and on macOS
+# mktemp's directory is behind the /var symlink.
 work=$(mktemp -d)
+work=$(cd "$work" && pwd -P)
 cleanup() {
   chmod -R u+w "$work"
   rm -rf "$work"

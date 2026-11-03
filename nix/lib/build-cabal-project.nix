@@ -291,7 +291,15 @@ let
       installPhase = ''
         runHook preInstall
         mkdir -p "$out"
-        cp dist-newstyle/cache/plan.json "$out/plan.json"
+        ${
+          # plan.json names the build directory. The Linux sandbox always
+          # builds in /build, but darwin builds in a new directory each
+          # time, so the copy there names /build too.
+          if stdenv.hostPlatform.isDarwin then
+            ''sed "s|$NIX_BUILD_TOP/|/build/|g" dist-newstyle/cache/plan.json > "$out/plan.json"''
+          else
+            ''cp dist-newstyle/cache/plan.json "$out/plan.json"''
+        }
         ${
           if withDocs then
             ''

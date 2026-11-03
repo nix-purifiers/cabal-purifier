@@ -533,7 +533,7 @@
     }
   ],
   "externalPaths": [],
-  "hash": "sha256-cXWDbYCKXUabEdPv4tM8cEe9Ok4OZ5QlOQGH/HeNJu8=",
+  "hash": "sha256-wHrhhusKowpGbqwGwBpFP3ZngOodlhqJwwBnIt9yndE=",
   "indexState": "2026-11-01T10:07:13Z",
   "outputs": {
     "packages": {
@@ -556,6 +556,635 @@
   "remotePackages": [],
   "repository": [],
   "systems": {
+    "aarch64-darwin": {
+      "compiler": "ghc-9.10.3",
+      "units": [
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "Diff",
+          "version": "1.0.2"
+        },
+        {
+          "flags": {
+            "base-ge-4-15": true,
+            "base-ge-4-16": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "OneTuple",
+          "version": "0.4.3"
+        },
+        {
+          "flags": {
+            "old-random": false,
+            "templatehaskell": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "QuickCheck",
+          "version": "2.16.0.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": true,
+          "name": "ShellCheck",
+          "version": "0.11.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "StateVar",
+          "version": "1.2.2"
+        },
+        {
+          "flags": {
+            "ordered-keymap": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "aeson",
+          "version": "2.2.5.1"
+        },
+        {
+          "flags": {
+            "example": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "ansi-terminal",
+          "version": "1.1.5"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "ansi-terminal-types",
+          "version": "1.1.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "array",
+          "version": "0.5.8.0"
+        },
+        {
+          "flags": {
+            "tagged": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "assoc",
+          "version": "1.1.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "base",
+          "version": "4.20.2.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "base-orphans",
+          "version": "0.9.4"
+        },
+        {
+          "flags": {
+            "tagged": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "bifunctors",
+          "version": "5.6.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "binary",
+          "version": "0.8.9.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "bytestring",
+          "version": "0.12.2.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "character-ps",
+          "version": "0.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "colour",
+          "version": "2.3.7"
+        },
+        {
+          "flags": {
+            "containers": true,
+            "distributive": true,
+            "indexed-traversable": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "comonad",
+          "version": "5.0.10"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "containers",
+          "version": "0.7"
+        },
+        {
+          "flags": {
+            "statevar": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "contravariant",
+          "version": "1.5.6"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "data-fix",
+          "version": "0.3.4"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "deepseq",
+          "version": "1.5.0.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "directory",
+          "version": "1.3.8.5"
+        },
+        {
+          "flags": {
+            "tagged": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "distributive",
+          "version": "0.6.3"
+        },
+        {
+          "flags": {
+            "werror": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "dlist",
+          "version": "1.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "exceptions",
+          "version": "0.10.9"
+        },
+        {
+          "flags": {
+            "containers042": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "fgl",
+          "version": "5.8.3.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "filepath",
+          "version": "1.5.4.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-bignum",
+          "version": "1.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-boot-th",
+          "version": "9.10.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-internal",
+          "version": "9.1003.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-prim",
+          "version": "0.12.0"
+        },
+        {
+          "flags": {
+            "arch-native": false,
+            "random-initial-seed": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "hashable",
+          "version": "1.5.1.0"
+        },
+        {
+          "flags": {
+            "in-ghc-tree": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "hsc2hs",
+          "version": "0.68.10"
+        },
+        {
+          "flags": {
+            "base-ge-4-18": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "indexed-traversable",
+          "version": "0.1.5"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "indexed-traversable-instances",
+          "version": "0.1.2.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "integer-conversion",
+          "version": "0.1.1"
+        },
+        {
+          "flags": {
+            "check-bounds": false,
+            "integer-gmp": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "integer-logarithms",
+          "version": "1.0.5"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "mtl",
+          "version": "2.3.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "network-uri",
+          "version": "2.6.4.2"
+        },
+        {
+          "flags": {
+            "process": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "optparse-applicative",
+          "version": "0.19.0.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "os-string",
+          "version": "2.0.7"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "parsec",
+          "version": "3.1.18.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "pretty",
+          "version": "1.1.3.6"
+        },
+        {
+          "flags": {
+            "buildreadme": false,
+            "text": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "prettyprinter",
+          "version": "1.7.2"
+        },
+        {
+          "flags": {
+            "text": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "prettyprinter-ansi-terminal",
+          "version": "1.1.4"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "primitive",
+          "version": "0.9.1.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "process",
+          "version": "1.6.26.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "random",
+          "version": "1.3.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "regex-base",
+          "version": "0.94.0.3"
+        },
+        {
+          "flags": {
+            "doctest": true,
+            "force-o2": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "regex-tdfa",
+          "version": "1.3.2.7"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "rts",
+          "version": "1.0.2"
+        },
+        {
+          "flags": {
+            "integer-simple": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "scientific",
+          "version": "0.3.10.0"
+        },
+        {
+          "flags": {
+            "semigroupoids": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "semialign",
+          "version": "1.4"
+        },
+        {
+          "flags": {
+            "comonad": true,
+            "containers": true,
+            "contravariant": true,
+            "tagged": true,
+            "unordered-containers": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "semigroupoids",
+          "version": "6.0.2"
+        },
+        {
+          "flags": {
+            "optimised-mixer": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "splitmix",
+          "version": "0.1.3.2"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "stm",
+          "version": "2.5.3.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "strict",
+          "version": "0.5.1"
+        },
+        {
+          "flags": {
+            "deepseq": true,
+            "template-haskell": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "tagged",
+          "version": "0.8.11"
+        },
+        {
+          "flags": {
+            "terminal-size": true,
+            "unix": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "tasty",
+          "version": "1.5.5"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "template-haskell",
+          "version": "2.22.0.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "terminal-size",
+          "version": "0.3.4"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "text",
+          "version": "2.1.3"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "text-iso8601",
+          "version": "0.1.1.2"
+        },
+        {
+          "flags": {
+            "asserts": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "text-short",
+          "version": "0.1.6.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "th-abstraction",
+          "version": "0.7.2.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "th-compat",
+          "version": "0.1.7"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "these",
+          "version": "1.2.1"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "time",
+          "version": "1.12.2"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "time-compat",
+          "version": "1.9.9"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "transformers",
+          "version": "0.6.1.1"
+        },
+        {
+          "flags": {
+            "five": false,
+            "five-three": true,
+            "generic-deriving": true,
+            "mtl": true
+          },
+          "installed": false,
+          "local": false,
+          "name": "transformers-compat",
+          "version": "0.8"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "unix",
+          "version": "2.8.7.0"
+        },
+        {
+          "flags": {
+            "debug": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "unordered-containers",
+          "version": "0.2.21"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "uuid-types",
+          "version": "1.0.6.1"
+        },
+        {
+          "flags": {
+            "boundschecks": true,
+            "internalchecks": false,
+            "unsafechecks": false,
+            "wall": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "vector",
+          "version": "0.13.2.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "vector-stream",
+          "version": "0.1.0.1"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": false,
+          "name": "witherable",
+          "version": "0.5"
+        }
+      ]
+    },
     "aarch64-linux": {
       "compiler": "ghc-9.10.3",
       "units": [
