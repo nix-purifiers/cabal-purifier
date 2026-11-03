@@ -83,9 +83,9 @@ package index is the one thing it keeps between runs, in
 updates an index it already has in place: the first lock downloads the
 whole Hackage index, and later ones take seconds. The command plans once for
 each system. Cabal takes the platform it plans for from the output of
-`ghc --info`, so the command plans for the other system through a GHC
-wrapper that reports that system and never compiles anything. One machine
-therefore locks both systems.
+`ghc --info`, so the command plans for the other systems through a GHC
+wrapper that reports the system it plans for and never compiles anything.
+One machine therefore locks every system.
 
 The lock run plans with the `ghc` on your `PATH`, or the compiler that
 `with-compiler` names, and with a GHC that the command brings along

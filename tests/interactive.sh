@@ -45,8 +45,8 @@ expect_failure "$work/stale" "hello.cabal changed since the lock" \
 
 echo "== adding a dependency and locking keeps the index state"
 cp -r "$work/fixtures/app" "$work/added"
-sed -i 's/build-depends: base, random, async/build-depends: base, random, async, containers/' \
-  "$work/added/hello.cabal"
+sed 's/build-depends: base, random, async/build-depends: base, random, async, containers/' \
+  "$work/fixtures/app/hello.cabal" > "$work/added/hello.cabal"
 (cd "$work/added" && "$cli" lock)
 python3 - "$work/fixtures/app/cabal-purifier.lock.json" "$work/added/cabal-purifier.lock.json" <<'EOF'
 import json

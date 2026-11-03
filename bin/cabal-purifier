@@ -58,8 +58,9 @@ PROJECT_FILES = ("cabal.project", "cabal.project.freeze", "cabal.project.local")
 # Each Nix system the lock plans for, with the target strings that GHC's
 # `--info` reports for it.
 SYSTEMS = {
-    "x86_64-linux": {"triple": "x86_64-unknown-linux", "arch": "ArchX86_64", "name": "x86_64"},
-    "aarch64-linux": {"triple": "aarch64-unknown-linux", "arch": "ArchAArch64", "name": "aarch64"},
+    "x86_64-linux": {"triple": "x86_64-unknown-linux", "arch": "ArchX86_64", "os": "OSLinux", "name": "x86_64"},
+    "aarch64-linux": {"triple": "aarch64-unknown-linux", "arch": "ArchAArch64", "os": "OSLinux", "name": "aarch64"},
+    "aarch64-darwin": {"triple": "aarch64-apple-darwin", "arch": "ArchAArch64", "os": "OSDarwin", "name": "aarch64"},
 }
 
 LIB = Path(os.environ.get("CABAL_PURIFIER_LIB", Path(__file__).resolve().parent.parent / "nix/lib"))
@@ -105,8 +106,10 @@ def sri_of_file(path):
 
 def host_system():
     machine = platform.machine()
+    # macOS calls the CPU arm64.
+    name = "aarch64" if machine == "arm64" else machine
     for system, target in SYSTEMS.items():
-        if target["name"] == machine and sys.platform.startswith("linux"):
+        if target["name"] == name and system.endswith(f"-{sys.platform}"):
             return system
     raise Failure(f"this machine ({machine}, {sys.platform}) is not one of {', '.join(SYSTEMS)}")
 
@@ -176,6 +179,7 @@ def planning_compiler(tmp, ghc, system):
     target = SYSTEMS[system]
     info = run([ghc, "--info"], capture=True)
     info = info.replace(host["triple"], target["triple"]).replace(host["arch"], target["arch"])
+    info = info.replace(f'"{host["os"]}"', f'"{target["os"]}"')
     info = info.replace(f'"{host["name"]}"', f'"{target["name"]}"')
     directory = Path(tmp) / f"ghc-{system}"
     directory.mkdir()
