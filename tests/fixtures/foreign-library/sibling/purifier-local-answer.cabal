@@ -1,0 +1,9 @@
+cabal-version: 3.0
+name: purifier-local-answer
+version: 0.1.0
+build-type: Simple
+library
+  exposed-modules: LocalAnswer
+  build-depends: base ==4.20.2.0, purifier-external-answer ==0.1.0
+  default-language: Haskell2010
+  ghc-options: -O0

@@ -286,3 +286,6 @@ in
   # ShellCheck's own test suite.
   real-world-shellcheck-tests = shellcheckProject.tests;
 }
+// lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+  native-products = import ./native-products.nix { inherit pkgs build; };
+}

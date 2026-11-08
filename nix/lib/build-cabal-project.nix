@@ -94,6 +94,8 @@
   externalPaths ? { },
   # The system whose plan the builds use.
   system ? stdenv.hostPlatform.system,
+  # Explicit C ABI foreign libraries. Existing component name lists stay intact.
+  nativeProducts ? { },
 }:
 let
   # The lock in memory; checkLock fails evaluation with its problems.
@@ -235,6 +237,27 @@ let
 
   outputs = lock.outputs.packages;
 
+  native = callPackage ./build-native-products.nix { inherit purifier; } {
+    inherit
+      name
+      nativeProducts
+      system
+      ghc'
+      repository
+      constraints
+      units
+      cabalArgs
+      filteredSrc
+      projectDir
+      externalPaths
+      cabalFreeze
+      ;
+    outputs = lock.outputs.packages;
+    requiredExternalPaths = lock.externalPaths;
+    inherit nativeBuildInputs buildInputs;
+  };
+  projections = if nativeProducts == { } then { } else native.projections;
+
   # Installs each executable, test suite and benchmark of a package under
   # packages/<package>/ in the output.
   installComponents = lib.concatStrings (
@@ -313,6 +336,7 @@ let
       '';
       passthru = {
         ghc = ghc';
+        inherit projections;
         inherit lock repository projectDir;
       };
     };
@@ -437,6 +461,7 @@ in
     release
     project
     repository
+    projections
     ;
   fetches = locked.entries;
 }
