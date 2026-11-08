@@ -160,7 +160,9 @@ assert lib.assertMsg (builtins.all (
   p: externalPaths ? ${p}
 ) requiredExternalPaths) "cabal-purifier: nativeProducts requires all locked externalPaths trees";
 assert lib.assertMsg (
-  stdenv.hostPlatform.isLinux && system == stdenv.hostPlatform.system
+  stdenv.hostPlatform.isLinux
+  && stdenv.buildPlatform == stdenv.hostPlatform
+  && system == stdenv.hostPlatform.system
 ) "cabal-purifier: nativeProducts currently requires a native Linux build";
 {
   inherit producer projections;

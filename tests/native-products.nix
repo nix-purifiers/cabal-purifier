@@ -67,9 +67,22 @@ let
     !(builtins.tryEval (build (args // { nativeProducts.answer = p; })).projections.native.drvPath)
     .success;
   defaultBuild = build (removeAttrs args [ "nativeProducts" ]);
+  crossPkgs =
+    if pkgs.stdenv.buildPlatform.isAarch64 then
+      pkgs.pkgsCross.gnu64
+    else
+      pkgs.pkgsCross.aarch64-multiplatform;
+  crossBuild = build.override {
+    stdenv = crossPkgs.stdenv;
+    callPackage = crossPkgs.callPackage;
+  };
+  crossRejected = !(builtins.tryEval (crossBuild args).projections.native.drvPath).success;
   ghc = built.project.ghc;
 in
 assert builtins.all rejected rejects;
+assert crossPkgs.stdenv.buildPlatform != crossPkgs.stdenv.hostPlatform;
+assert crossPkgs.stdenv.hostPlatform.isLinux;
+assert crossRejected;
 assert defaultBuild.projections == { };
 assert defaultBuild.packages.purifier-foreign-proof.foreignLibraries == [ "answer" ];
 assert built.packages.purifier-foreign-proof.foreignLibraries == [ "answer" ];
@@ -105,5 +118,5 @@ pkgs.runCommand "cabal-native-products-consumers"
     python3 ${./native/runtime-controls.py} "$prefix" "$competitor" "$out" ${pkgs.lib.getBin pkgs.stdenv.cc.libc}/bin/ldd
     for name in c ctypes cffi origins java; do test ! -s "$out/$name.stderr"; done
     cp "$prefix/native-products.json" "$out/native-products.json"
-    printf '%s\n' '${toString (builtins.length rejects)} evaluation rejections; empty defaults and component lists preserved' > "$out/evaluation.txt"
+    printf '%s\n' '${toString (builtins.length rejects)} product evaluation rejections plus cross-stdenv rejection; empty defaults and component lists preserved' > "$out/evaluation.txt"
   ''
