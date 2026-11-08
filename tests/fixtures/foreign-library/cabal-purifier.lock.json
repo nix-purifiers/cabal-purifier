@@ -1,0 +1,393 @@
+{
+  "configuration": {
+    "benchmarks": true,
+    "tests": true
+  },
+  "definition": {
+    "cabal.project": "sha256-eMaIsaL+SK14tPwfa7qHX3e3i2KY9DErtnTlgxXur5w=",
+    "purifier-foreign-proof.cabal": "sha256-+6yi+61buLGahzwEnUtDZfkMqtHyBXs16GrqbVNP2F0=",
+    "sibling/purifier-local-answer.cabal": "sha256-2QRF2QazkfO7UMSj4kIdEalNyuI4f1FexURQTwQSsdQ="
+  },
+  "downloads": [
+    {
+      "hash": "sha256-ph1OizD1oWUm19MRcbZ0rnkk0iB/N4Bg0TNjvYeU3ow=",
+      "mirrors": [
+        "https://hackage.haskell.org/package/splitmix-0.1.3.2/splitmix-0.1.3.2.tar.gz"
+      ],
+      "path": "repository/splitmix-0.1.3.2.tar.gz",
+      "url": "https://hackage.haskell.org/package/splitmix-0.1.3.2.tar.gz"
+    }
+  ],
+  "externalPaths": [
+    "../foreign-external"
+  ],
+  "hash": "sha256-xRhhPW5EUE6wL48Fw9Y2/1W/qxnGFbjn+NbmrrHRusk=",
+  "indexState": "2026-11-07T22:48:03Z",
+  "outputs": {
+    "packages": {
+      "purifier-foreign-proof": {
+        "benchmarks": [],
+        "dir": ".",
+        "executables": [],
+        "foreignLibraries": [
+          "answer"
+        ],
+        "library": false,
+        "sublibraries": [],
+        "testSuites": [],
+        "version": "0.1.0"
+      },
+      "purifier-local-answer": {
+        "benchmarks": [],
+        "dir": "sibling",
+        "executables": [],
+        "foreignLibraries": [],
+        "library": true,
+        "sublibraries": [],
+        "testSuites": [],
+        "version": "0.1.0"
+      }
+    }
+  },
+  "remotePackages": [],
+  "repository": [],
+  "systems": {
+    "aarch64-darwin": {
+      "compiler": "ghc-9.10.3",
+      "units": [
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "array",
+          "version": "0.5.8.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "base",
+          "version": "4.20.2.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "bytestring",
+          "version": "0.12.2.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "deepseq",
+          "version": "1.5.0.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-bignum",
+          "version": "1.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-boot-th",
+          "version": "9.10.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-internal",
+          "version": "9.1003.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-prim",
+          "version": "0.12.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "pretty",
+          "version": "1.1.3.6"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": true,
+          "name": "purifier-external-answer",
+          "version": "0.1.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": true,
+          "name": "purifier-foreign-proof",
+          "version": "0.1.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": true,
+          "name": "purifier-local-answer",
+          "version": "0.1.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "rts",
+          "version": "1.0.2"
+        },
+        {
+          "flags": {
+            "optimised-mixer": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "splitmix",
+          "version": "0.1.3.2"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "template-haskell",
+          "version": "2.22.0.0"
+        }
+      ]
+    },
+    "aarch64-linux": {
+      "compiler": "ghc-9.10.3",
+      "units": [
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "array",
+          "version": "0.5.8.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "base",
+          "version": "4.20.2.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "bytestring",
+          "version": "0.12.2.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "deepseq",
+          "version": "1.5.0.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-bignum",
+          "version": "1.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-boot-th",
+          "version": "9.10.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-internal",
+          "version": "9.1003.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-prim",
+          "version": "0.12.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "pretty",
+          "version": "1.1.3.6"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": true,
+          "name": "purifier-external-answer",
+          "version": "0.1.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": true,
+          "name": "purifier-foreign-proof",
+          "version": "0.1.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": true,
+          "name": "purifier-local-answer",
+          "version": "0.1.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "rts",
+          "version": "1.0.2"
+        },
+        {
+          "flags": {
+            "optimised-mixer": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "splitmix",
+          "version": "0.1.3.2"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "template-haskell",
+          "version": "2.22.0.0"
+        }
+      ]
+    },
+    "x86_64-linux": {
+      "compiler": "ghc-9.10.3",
+      "units": [
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "array",
+          "version": "0.5.8.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "base",
+          "version": "4.20.2.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "bytestring",
+          "version": "0.12.2.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "deepseq",
+          "version": "1.5.0.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-bignum",
+          "version": "1.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-boot-th",
+          "version": "9.10.3"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-internal",
+          "version": "9.1003.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "ghc-prim",
+          "version": "0.12.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "pretty",
+          "version": "1.1.3.6"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": true,
+          "name": "purifier-external-answer",
+          "version": "0.1.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": true,
+          "name": "purifier-foreign-proof",
+          "version": "0.1.0"
+        },
+        {
+          "flags": {},
+          "installed": false,
+          "local": true,
+          "name": "purifier-local-answer",
+          "version": "0.1.0"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "rts",
+          "version": "1.0.2"
+        },
+        {
+          "flags": {
+            "optimised-mixer": false
+          },
+          "installed": false,
+          "local": false,
+          "name": "splitmix",
+          "version": "0.1.3.2"
+        },
+        {
+          "flags": {},
+          "installed": true,
+          "local": false,
+          "name": "template-haskell",
+          "version": "2.22.0.0"
+        }
+      ]
+    }
+  },
+  "version": 2
+}

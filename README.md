@@ -207,6 +207,60 @@ and `fetchers`. A company mirror or credentials go into
 repository), which the purifier library's `fetchEntry` calls with the
 arguments of the nixpkgs fetcher of that name.
 
+### C ABI foreign-library projections
+
+On native Linux, explicitly select one locked `foreign-library` component to
+expose its installed shared library to C, Python FFI and Java FFM:
+
+```nix
+let
+  built = pkgs.cabal-purifier.buildCabalProject {
+    src = ./.;
+    nativeProducts.answer = {
+      selector = "my-package:flib:answer";
+      abi = "c";
+      exports = [ "my_answer" "my_init" "my_term" ];
+      runtime = {
+        kind = "ghc";
+        lifecycle = "process-once";
+        threading = "single-foreign-thread";
+        init = "my_init";
+        term = "my_term";
+      };
+    };
+  };
+in built.projections
+```
+
+The `native`, `python-ffi` and `java-ffi` projections contain a `catalog.json`
+with the exact library and include paths, a lazy Python `purifier_native.load`
+helper, and Java `java.args`. Set compatible signatures before calling native
+functions. The actual GHC-generated export headers and compiler `HsFFI.h`
+headers are included; `native-products.json` in the catalog's producer prefix
+records native and selected artifact hashes, loader edits, compiler identity
+and exact runtime dependency origins.
+
+The selected package and reachable local library packages must explicitly use
+`build-type: Simple`. The native builder uses Cabal's resolved component plan
+and Setup installation. It retains the immutable local build tree, compiled
+Cabal store and GHC runtime. Installed local library bytes are verified before
+selected copies receive absolute dependency references, including transitive
+local packages supplied through `externalPaths`.
+
+The package supplies its own C ABI initialization and shutdown functions.
+Initialize the GHC runtime once before foreign calls, use one foreign thread,
+then shut it down once at the end of the process. Reinitialization, concurrent
+foreign threads and general safe unloading are outside this contract. The
+builder validates the declared exports; it does not infer their signatures or
+generate runtime lifecycle functions.
+
+`nativeProducts` defaults to an empty set. Existing outputs and the
+`packages.<name>.foreignLibraries` component-name lists keep their behavior.
+Native builds use the locked local repository in the Nix build sandbox and
+verify a warm `--offline` replay. A cold Cabal `--offline` build rejects the
+`file+noindex` source transport on the tested SDK; it is a separate boundary.
+Darwin and cross compilation are unsupported for these projections.
+
 ### A lockfile outside the project
 
 The recommended setup is the one above: both lockfiles lie in the

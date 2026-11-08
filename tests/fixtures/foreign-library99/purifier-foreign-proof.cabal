@@ -1,0 +1,14 @@
+cabal-version: 3.0
+name: purifier-foreign-proof
+version: 0.1.0
+build-type: Simple
+license: MIT
+
+foreign-library answer
+  type: native-shared
+  other-modules: Answer
+  hs-source-dirs: src
+  c-sources: csrc/runtime.c
+  build-depends: base ==4.20.2.0, bytestring ==0.12.2.0, splitmix ==0.1.3.2, purifier-local-answer ==0.1.0
+  default-language: Haskell2010
+  ghc-options: -O0

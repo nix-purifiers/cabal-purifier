@@ -18,4 +18,8 @@ args=(
 nix build --no-link "${args[@]}"
 nix build --no-link --rebuild "${args[@]}"
 
+if [ "$(uname -s)" = Linux ]; then
+  bash "$root/tests/native-products.sh"
+fi
+
 echo "conformance-rebuild.sh: all passed"
