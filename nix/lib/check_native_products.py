@@ -115,18 +115,27 @@ def main(out, spec_path, ldd):
     require(len(candidates) == 1, 'native-installed root is absent, ambiguous or differs from build bytes')
     installed_root = candidates[0]
     original_map = loader_map(installed_root, ldd)
+    local_origins = {n: p for n, p in original_map.items()
+                     if p.is_relative_to(out / 'tree') or p.is_relative_to(native_install)}
     local_by_name = {}
     local_receipts = []
     for path in sorted(installed - {installed_root}):
         soname = command('patchelf', '--print-soname', path) or path.name
+        # Setup copy installs the package's other components too. Only the
+        # selected foreign library's actual runtime closure belongs here.
+        if soname not in local_origins:
+            continue
         require(soname not in local_by_name, 'ambiguous installed local SONAME: ' + soname)
         matches = {p.resolve() for u in local_units for p in Path(u['dist-dir']).rglob(path.name) if p.is_file()}
         matches = {p for p in matches if digest(p) == digest(path)}
         require(len(matches) == 1, f'installed local library lacks unique identical native artifact: {path}')
         built = matches.pop()
+        require(local_origins[soname] in {built, path},
+                'native local dependency resolved outside its verified artifact: ' + soname)
         local_by_name[soname] = path
         local_receipts.append({'soname': soname, 'nativeBuilt': str(built), 'nativeInstalled': str(path),
                                'nativeSha256': digest(built), 'installedSha256': digest(path)})
+    require(set(local_origins) == set(local_by_name), 'native-installed local runtime dependency is missing')
     # Preserve exact installed originals, and patch separate selected copies only.
     runtime_dir = out / 'runtime'
     runtime_dir.mkdir()
