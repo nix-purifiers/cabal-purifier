@@ -13,7 +13,9 @@ def origin(name):
 def field(package, name):
     return subprocess.check_output(['ghc-pkg','--global','field',package,name,'--simple-output'],text=True).strip()
 def exported(path, marker):
-    names = [line.split()[-1] for line in subprocess.check_output(['nm','-D','--defined-only',str(path)],text=True).splitlines() if line.split()]
+    rows = [line.split() for line in subprocess.check_output(['readelf','--dyn-syms','--wide',str(path)],text=True).splitlines()]
+    names = [r[7] for r in rows if len(r)>=8 and r[0].endswith(':') and r[0][:-1].isdigit()
+             and r[6]!='UND' and r[4] in {'GLOBAL','WEAK'} and r[5] in {'DEFAULT','PROTECTED'}]
     return next(name for name in names if marker in name)
 rows=[]
 dirs = list(dict.fromkeys(shlex.split(field('bytestring','dynamic-library-dirs'))+shlex.split(field('bytestring','library-dirs'))))
