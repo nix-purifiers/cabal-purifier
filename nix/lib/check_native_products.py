@@ -25,6 +25,15 @@ def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def dynamic_exports(path):
+    # Read only the required ELF dynamic symbol table. GNU nm's BFD reader
+    # also interprets unrelated ARM attributes on these native GHC outputs.
+    rows = [line.split() for line in command('readelf', '--dyn-syms', '--wide', path).splitlines()]
+    return {row[7] for row in rows if len(row) >= 8 and row[0].endswith(':')
+            and row[0][:-1].isdigit() and row[6] != 'UND'
+            and row[4] in {'GLOBAL', 'WEAK'} and row[5] in {'DEFAULT', 'PROTECTED'}}
+
+
 def elf(path, system):
     data = path.read_bytes()
     require(data[:6] == b'\x7fELF\x02\x01', f'not a little-endian ELF64 library: {path}')
@@ -89,7 +98,7 @@ def main(out, spec_path, ldd):
     native_root = Path(root_unit['bin-file']).resolve(strict=True)
     require(native_root.is_relative_to(out / 'tree'), 'foreign artifact escaped persistent build tree')
     elf(native_root, spec['system'])
-    exported = {line.split()[-1] for line in command('nm', '-D', '--defined-only', native_root).splitlines() if line.split()}
+    exported = dynamic_exports(native_root)
     require(set(product['exports']) <= exported, 'native foreign library lacks declared exports')
     native_install = out / 'native-install'
     installed_dirs = set()

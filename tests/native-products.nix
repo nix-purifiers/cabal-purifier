@@ -116,7 +116,13 @@ pkgs.runCommand "cabal-native-products-consumers"
     javac Consumer.java
     timeout 25s java @${built.projections.java-ffi}/java.args --enable-native-access=ALL-UNNAMED Consumer "$library" > "$out/java.txt" 2> "$out/java.stderr"
     python3 ${./native/runtime-controls.py} "$prefix" "$competitor" "$out" ${pkgs.lib.getBin pkgs.stdenv.cc.libc}/bin/ldd
-    for name in c ctypes cffi origins java; do test ! -s "$out/$name.stderr"; done
+    for name in c ctypes cffi origins java; do
+      if [ -s "$out/$name.stderr" ]; then
+        printf 'unexpected stderr from %s consumer:\n' "$name" >&2
+        cat "$out/$name.stderr" >&2
+        exit 1
+      fi
+    done
     cp "$prefix/native-products.json" "$out/native-products.json"
     printf '%s\n' '${toString (builtins.length rejects)} product evaluation rejections plus cross-stdenv rejection; empty defaults and component lists preserved' > "$out/evaluation.txt"
   ''
