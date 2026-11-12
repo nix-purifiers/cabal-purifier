@@ -78,6 +78,13 @@ def say(message):
     print(f"cabal-purifier: {message}", file=sys.stderr)
 
 
+def local_environment(**overrides):
+    """Preserve the caller's tool search when a child changes directory."""
+    env = dict(os.environ, **overrides)
+    env["PATH"] = os.pathsep.join(str(Path(entry or ".").absolute()) for entry in os.get_exec_path(env))
+    return env
+
+
 def run(cmd, cwd=None, env=None, capture=False):
     result = subprocess.run(
         [str(c) for c in cmd],
@@ -175,7 +182,7 @@ def find_compiler(root, config_file=None):
     found = shutil.which(name)
     if not found:
         raise Failure(f"no compiler {name} on PATH")
-    return Path(found)
+    return Path(found).absolute()
 
 
 def compiler_arguments(arguments):
@@ -223,7 +230,7 @@ def validate_local_compiler(root, lock, arguments=()):
         found = shutil.which(override)
         if not found:
             raise Failure(f"no compiler {override} on PATH")
-        compiler = Path(found)
+        compiler = Path(found).absolute()
     else:
         compiler = find_compiler(root, config_file=config)
     system = host_system()
@@ -250,11 +257,11 @@ def ghc_pkg_for(ghc):
     for candidate in (f"ghc-pkg-{version}", "ghc-pkg"):
         beside = ghc.parent / candidate
         if beside.exists():
-            return beside
+            return beside.absolute()
     found = shutil.which(f"ghc-pkg-{version}") or shutil.which("ghc-pkg")
     if not found:
         raise Failure(f"no ghc-pkg for {ghc}")
-    return Path(found)
+    return Path(found).absolute()
 
 
 def planning_compiler(tmp, ghc, system):
@@ -300,7 +307,7 @@ def configuration_flags(configuration):
 def plan(root, env, compiler, builddir, configuration, project_args=(), constraints=()):
     run(
         [
-            "cabal",
+            real_cabal(root),
             "build",
             "all",
             "--dry-run",
@@ -417,7 +424,7 @@ def refresh_resolution(root, env, ghc, latest, packages, previous_plans, outside
             index_args = [f"--index-state={latest}"] if latest else []
             run(
                 [
-                    "cabal",
+                    real_cabal(root),
                     "freeze",
                     f"--project-dir={root}",
                     f"--project-file={project}",
@@ -437,7 +444,7 @@ def refresh_resolution(root, env, ghc, latest, packages, previous_plans, outside
             freeze.unlink()
         say(f"writing {FREEZE} again with the newest package index")
         index_args = [f"--index-state={latest}"] if latest else []
-        run(["cabal", "freeze", f"--with-compiler={ghc}", *index_args], cwd=root, env=env)
+        run([real_cabal(root), "freeze", f"--with-compiler={ghc}", *index_args], cwd=root, env=env)
         return {}
     if not packages:
         return {}
@@ -670,10 +677,10 @@ def make_lock(
             "  secure: True\n"
             f"remote-repo-cache: {repo_cache}\n"
         )
-        env = dict(os.environ, CABAL_DIR=str(tmp / "cabal"))
+        env = local_environment(CABAL_DIR=str(tmp / "cabal"))
         env.pop("CABAL_CONFIG", None)
         say("updating the package indexes")
-        updated = run(["cabal", "update"], cwd=root, env=env, capture=True)
+        updated = run([real_cabal(root), "update"], cwd=root, env=env, capture=True)
         sys.stderr.write(updated)
         latest = re.findall(r"index-state is set to (\S+?)\.?$", updated, re.MULTILINE)
         latest = latest[-1] if latest else None
@@ -963,7 +970,7 @@ def offline_setup(root, lock, sources, work, freeze=None):
         constraints_of(lock["systems"][system]["units"]),
         freeze=freeze,
     )
-    env = dict(os.environ, CABAL_DIR=str(cabal_dir))
+    env = local_environment(CABAL_DIR=str(cabal_dir))
     env.pop("CABAL_CONFIG", None)
     return env, [f"--project-dir={root}", f"--project-file={project}"]
 
@@ -1305,7 +1312,7 @@ def real_cabal(root):
     for directory in path:
         found = shutil.which("cabal", path=directory)
         if found and Path(found).resolve() != installed:
-            return found
+            return str(Path(found).absolute())
     raise Failure("no ordinary cabal on PATH")
 
 

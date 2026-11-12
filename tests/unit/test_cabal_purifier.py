@@ -83,6 +83,12 @@ class LocalCompilerTest(unittest.TestCase):
     def test_global_config_is_consumed_after_sdk_selection(self):
         self.assertEqual(cli.compiler_arguments(["--config-file", "/opt/config", "build", "-w/opt/ghc"]), ("/opt/ghc", "/opt/config", ["build", "-w/opt/ghc"]))
 
+    def test_relative_path_is_anchored_without_resolving_sdk_symlinks(self):
+        with patch.dict(os.environ, PATH="sdk/bin::/usr/bin"), patch("os.getcwd", return_value="/caller"):
+            self.assertEqual(cli.local_environment()["PATH"], "/caller/sdk/bin:/caller:/usr/bin")
+            with patch.object(cli.shutil, "which", return_value="sdk/bin/ghc"):
+                self.assertEqual(self.validate(arguments=("build", "-wsdk/bin/ghc")), Path("/caller/sdk/bin/ghc"))
+
     def test_wrong_version(self):
         with self.assertRaisesRegex(cli.Failure, "lock names ghc-99.7.1"):
             self.validate(version="99.7.2")
