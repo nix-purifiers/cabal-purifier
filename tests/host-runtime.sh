@@ -40,7 +40,7 @@ printf '%s\n' "$(command -v ghc)" "$(command -v cabal)" > "$evidence/after-paths
 export http_proxy=http://127.0.0.1:9 https_proxy=http://127.0.0.1:9
 export HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9
 export ALL_PROXY=http://127.0.0.1:9 all_proxy=http://127.0.0.1:9 NO_PROXY= no_proxy=
-cabal run hello > "$evidence/runtime.txt" 2> "$evidence/runtime.stderr"
+cabal run --jobs=1 hello > "$evidence/runtime.txt" 2> "$evidence/runtime.stderr"
 grep -q 'hello purified ' "$evidence/runtime.txt"
 cp dist-newstyle/cache/plan.json "$evidence/plan.json"
 sha256sum Main.hs cabal.project hello.cabal > "$evidence/project-after.sha256"
@@ -66,7 +66,7 @@ if "$cli" prefetch > "$evidence/mismatch-prefetch.log" 2>&1; then
   echo 'prefetch accepted a different locked compiler' >&2; exit 1
 fi
 grep -q 'lock names ghc-0.0.0-mismatch' "$evidence/mismatch-prefetch.log"
-if cabal run hello > "$evidence/mismatch-shim.log" 2>&1; then
+if cabal run --jobs=1 hello > "$evidence/mismatch-shim.log" 2>&1; then
   echo 'shim accepted a different locked compiler' >&2; exit 1
 fi
 grep -q 'lock names ghc-0.0.0-mismatch' "$evidence/mismatch-shim.log"
