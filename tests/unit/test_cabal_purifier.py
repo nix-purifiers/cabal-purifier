@@ -39,7 +39,7 @@ check_plan = load("check_plan", ROOT / "nix/lib/check_plan.py")
 
 
 class LocalCompilerTest(unittest.TestCase):
-    def validate(self, version="99.7.1", target="x86_64-unknown-linux", package_version=None):
+    def validate(self, version="99.7.1", target="x86_64-unknown-linux", package_version=None, arguments=()):
         # A version absent from any packaged SDK catalog is still valid locally.
         lock = {"systems": {"x86_64-linux": {"compiler": "ghc-99.7.1"}}}
         def output(argv, **kwargs):
@@ -50,11 +50,18 @@ class LocalCompilerTest(unittest.TestCase):
             if argv[-1] == "--version":
                 return "GHC package manager version " + (package_version or version)
             self.fail(argv)
-        with patch.object(cli, "find_compiler", return_value=Path("/opt/user-ghc/bin/ghc")), patch.object(cli, "ghc_pkg_for", return_value=Path("/opt/user-ghc/bin/ghc-pkg")), patch.object(cli, "host_system", return_value="x86_64-linux"), patch.object(cli, "run", side_effect=output):
-            return cli.validate_local_compiler(Path("."), lock)
+        with patch.object(cli, "find_compiler", return_value=Path("/opt/user-ghc/bin/ghc")) as default_compiler, patch.object(cli, "ghc_pkg_for", return_value=Path("/opt/user-ghc/bin/ghc-pkg")), patch.object(cli, "host_system", return_value="x86_64-linux"), patch.object(cli, "run", side_effect=output):
+            result = cli.validate_local_compiler(Path("."), lock, arguments)
+            if arguments:
+                default_compiler.assert_not_called()
+            return result
 
     def test_noncatalog_host_compiler(self):
         self.assertEqual(self.validate(), Path("/opt/user-ghc/bin/ghc"))
+
+    def test_explicit_compiler_without_default(self):
+        with patch.object(cli.shutil, "which", return_value="/opt/explicit-ghc/bin/ghc"):
+            self.assertEqual(self.validate(arguments=("build", "--with-compiler=/opt/explicit-ghc/bin/ghc")), Path("/opt/explicit-ghc/bin/ghc"))
 
     def test_wrong_version(self):
         with self.assertRaisesRegex(cli.Failure, "lock names ghc-99.7.1"):

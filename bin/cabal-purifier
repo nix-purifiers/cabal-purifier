@@ -163,7 +163,6 @@ def find_compiler(root):
 
 def validate_local_compiler(root, lock, arguments=()):
     """Validate the selected host SDK, without requiring a Nix SDK."""
-    compiler = find_compiler(root)
     override = None
     for index, argument in enumerate(arguments):
         if argument.startswith("--with-compiler="):
@@ -177,6 +176,8 @@ def validate_local_compiler(root, lock, arguments=()):
         if not found:
             raise Failure(f"no compiler {override} on PATH")
         compiler = Path(found)
+    else:
+        compiler = find_compiler(root)
     system = host_system()
     expected = lock["systems"].get(system)
     if expected is None:
