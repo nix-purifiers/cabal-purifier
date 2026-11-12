@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 #
-# Runs on x86_64-linux and aarch64-linux: the flake's checks (the CLI
+# Runs on x86_64-linux, aarch64-linux and aarch64-darwin: the flake's checks (the CLI
 # build, the unit tests, the sandboxed builds of the fixtures and of
 # ShellCheck, and the conformance checks the sandbox can run), then the
 # conformance checks that need the network or Nix itself, as steps named
@@ -23,12 +23,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [ubuntu-latest, ubuntu-24.04-arm]
+        runner: [ubuntu-latest, ubuntu-24.04-arm, macos-15]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
       - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            sandbox = true
       - run: nix flake check -L
       - name: conformance-relock
         run: tests/conformance-relock.sh
