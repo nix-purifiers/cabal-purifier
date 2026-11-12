@@ -1306,7 +1306,7 @@ def real_cabal(root):
     """The cabal on PATH, past the shim, so that the shim does not run
     itself."""
     shims = (work_dir(root) / "bin").resolve()
-    path = [p for p in os.environ.get("PATH", "").split(os.pathsep) if p and Path(p).resolve() != shims]
+    path = [p or "." for p in os.get_exec_path() if Path(p or ".").resolve() != shims]
     own = os.environ.get("CABAL_PURIFIER_SELF")
     installed = Path(own).with_name("cabal").resolve() if own else None
     for directory in path:

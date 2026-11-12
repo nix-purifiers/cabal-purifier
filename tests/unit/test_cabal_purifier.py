@@ -89,6 +89,40 @@ class LocalCompilerTest(unittest.TestCase):
             with patch.object(cli.shutil, "which", return_value="sdk/bin/ghc"):
                 self.assertEqual(self.validate(arguments=("build", "-wsdk/bin/ghc")), Path("/caller/sdk/bin/ghc"))
 
+    def test_empty_path_entry_selects_caller_cabal_before_later_tool(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            caller = Path(tmp)
+            later = caller / "later"
+            later.mkdir()
+            for path in (caller / "cabal", later / "cabal"):
+                path.write_text("#!/bin/sh\nexit 0\n")
+                path.chmod(0o755)
+            before = Path.cwd()
+            try:
+                os.chdir(caller)
+                with patch.dict(os.environ, PATH=":" + str(later)):
+                    self.assertEqual(cli.real_cabal(caller), str(caller / "cabal"))
+            finally:
+                os.chdir(before)
+
+    def test_empty_path_entry_still_excludes_generated_shim_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            shim = cli.work_dir(project) / "bin"
+            shim.mkdir(parents=True)
+            ordinary = project / "ordinary"
+            ordinary.mkdir()
+            for path in (shim / "cabal", ordinary / "cabal"):
+                path.write_text("#!/bin/sh\nexit 0\n")
+                path.chmod(0o755)
+            before = Path.cwd()
+            try:
+                os.chdir(shim)
+                with patch.dict(os.environ, PATH=":" + str(ordinary)):
+                    self.assertEqual(cli.real_cabal(project), str(ordinary / "cabal"))
+            finally:
+                os.chdir(before)
+
     def test_wrong_version(self):
         with self.assertRaisesRegex(cli.Failure, "lock names ghc-99.7.1"):
             self.validate(version="99.7.2")
