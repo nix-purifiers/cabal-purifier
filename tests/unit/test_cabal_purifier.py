@@ -63,6 +63,26 @@ class LocalCompilerTest(unittest.TestCase):
         with patch.object(cli.shutil, "which", return_value="/opt/explicit-ghc/bin/ghc"):
             self.assertEqual(self.validate(arguments=("build", "--with-compiler=/opt/explicit-ghc/bin/ghc")), Path("/opt/explicit-ghc/bin/ghc"))
 
+    def test_attached_short_compiler(self):
+        with patch.object(cli.shutil, "which", return_value="/opt/attached-ghc/bin/ghc"):
+            self.assertEqual(self.validate(arguments=("build", "-w/opt/attached-ghc/bin/ghc")), Path("/opt/attached-ghc/bin/ghc"))
+
+    def test_compiler_in_cabal_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = root / "native-config"
+            config.write_text('with-compiler: "/opt/host sdk/bin/ghc"\n')
+            with patch.dict(os.environ, CABAL_CONFIG=str(config)), patch.object(cli.shutil, "which", side_effect=lambda name: name):
+                self.assertEqual(cli.find_compiler(root), Path("/opt/host sdk/bin/ghc"))
+                (root / "cabal.project").write_text("with-compiler: /opt/project-ghc\n")
+                self.assertEqual(cli.find_compiler(root), Path("/opt/project-ghc"))
+
+    def test_executable_arguments_do_not_select_compiler(self):
+        self.assertEqual(cli.compiler_arguments(["run", "hello", "--", "-wapp-option"]), (None, None, ["run", "hello", "--", "-wapp-option"]))
+
+    def test_global_config_is_consumed_after_sdk_selection(self):
+        self.assertEqual(cli.compiler_arguments(["--config-file", "/opt/config", "build", "-w/opt/ghc"]), ("/opt/ghc", "/opt/config", ["build", "-w/opt/ghc"]))
+
     def test_wrong_version(self):
         with self.assertRaisesRegex(cli.Failure, "lock names ghc-99.7.1"):
             self.validate(version="99.7.2")

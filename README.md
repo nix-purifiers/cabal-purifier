@@ -87,8 +87,11 @@ each system. Cabal takes the platform it plans for from the output of
 wrapper that reports the system it plans for and never compiles anything.
 One machine therefore locks every system.
 
-The lock run plans with the `ghc` on your `PATH`, or the compiler that
-`with-compiler` names. Install GHC and Cabal before local adoption; no
+The lock run follows `with-compiler` in your native Cabal configuration
+(including `CABAL_CONFIG`), overridden by project files, then defaults to
+`ghc` on your `PATH`. The development shim also honors Cabal’s explicit
+`-w PATH`, `-wPATH` and `--with-compiler=PATH` selections. It reads the
+compiler choice before applying its isolated locked-repository configuration. Install GHC and Cabal before local adoption; no
 maintainer version table limits the host compiler. Local prefetch and
 development keep those tools. The optional `cliWithToolchain` package
 adds a bundled GHC fallback after your existing `PATH`.
