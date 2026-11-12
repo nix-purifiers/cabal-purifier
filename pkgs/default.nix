@@ -7,7 +7,7 @@
   # The cabal-purifier command. It builds outside the flake, so it takes the
   # source of github:nix-purifiers/purifier from the library of this flake.
   cli = callPackage ./cli {
-    version = builtins.replaceStrings [ "\n" ] [ "" ] (builtins.readFile ../version.txt);
+    version = import ./version.nix;
     purifierSource = lib.caisson.libManifest.sources.purifier;
   };
 
