@@ -482,6 +482,25 @@ nix shell 'github:nix-purifiers/cabal-purifier'
 eval "$(cabal-purifier prefetch --lockfile ../shellcheck.lock.json)"
 ```
 
+## Compatibility checks
+
+CI runs the full fixture, ShellCheck and conformance suites on x86_64
+Linux, aarch64 Linux and aarch64 Darwin. A separate matrix captures a
+fresh dependency-bearing application lock with GHC 9.6.7, 9.8.4, 9.10.3,
+9.12.4 and 9.14.1, using both cabal-install 3.16.1.0 and 3.18.2.0 on
+x86_64 Linux and aarch64 Darwin. Each job builds that lock through Nix,
+checks the compiler in the resulting plan and executes the application.
+Artifacts retain the lock, native tool versions, source hash, derivations,
+output hashes and runtime output, including partial evidence on failure.
+These are exact tested version points; a matrix entry establishes support
+only after its job succeeds.
+
+To run one matrix entry with the named GHC and Cabal already on `PATH`:
+
+```zsh
+bash tests/compatibility.sh 9.10.3 3.16.1.0 "$TMPDIR/cabal-evidence"
+```
+
 ## Credits
 
 The purifier idea was inspired by nixcloud's

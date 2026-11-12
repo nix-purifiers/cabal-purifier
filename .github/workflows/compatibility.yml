@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: MIT
+name: maintained toolchains
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compatibility:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-latest, macos-15]
+        ghc: ['9.6.7', '9.8.4', '9.10.3', '9.12.4', '9.14.1']
+        cabal: ['3.16.1.0', '3.18.2.0']
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: |
+            sandbox = true
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: ${{ matrix.cabal }}
+      - name: Capture, build and execute the dependency-bearing sample
+        run: bash tests/compatibility.sh '${{ matrix.ghc }}' '${{ matrix.cabal }}' "$RUNNER_TEMP/compatibility"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compatibility-${{ runner.os }}-${{ runner.arch }}-ghc${{ matrix.ghc }}-cabal${{ matrix.cabal }}
+          path: ${{ runner.temp }}/compatibility
