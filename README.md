@@ -29,7 +29,7 @@ Sandboxed builds of the whole project are an optional
 The shell provides both `cabal-purifier` and the native `cabal` wrapper. With a
 purifier lock, the wrapper uses Nix-resolved dependencies. Without one, it
 warns on standard error and runs ordinary, impure Cabal, including outside a
-project. `prefetch` also supplies a project-local wrapper and toolchain.
+project. `prefetch` also supplies a project-local wrapper and preserves your existing runtime.
 
 For persistent use, add these packages through your usual Nix configuration.
 
@@ -88,9 +88,14 @@ wrapper that reports the system it plans for and never compiles anything.
 One machine therefore locks every system.
 
 The lock run plans with the `ghc` on your `PATH`, or the compiler that
-`with-compiler` names, and with a GHC that the command brings along
-otherwise. Nix
-builds with the nixpkgs GHC of the exact version the lock names.
+`with-compiler` names. Install GHC and Cabal before local adoption; no
+maintainer version table limits the host compiler. Local prefetch and
+development keep those tools. The optional `cliWithToolchain` package
+adds a bundled GHC fallback after your existing `PATH`.
+
+Full sandboxed builds use an immutable SDK: by default the nixpkgs GHC of
+the exact version the lock names, or the builder's explicit `ghc` override.
+Availability of a packaged SDK constrains those builds separately from local adoption.
 
 From each plan (`plan.json`), the command records:
 
@@ -321,18 +326,24 @@ nix shell 'github:nix-purifiers/cabal-purifier'
 eval "$(cabal-purifier prefetch)"
 ```
 
-`prefetch` realizes in the Nix store everything the lockfile lists for
-the current system that day-to-day development needs:
+`prefetch` realizes the locked dependency sources for the current system.
+It keeps your existing GHC and Cabal; it does not install GHC or a language
+server. The selected compiler must match the lock's compiler version and
+native target, and its `ghc-pkg` must belong to the same GHC version. If you
+change compilers, run `cabal-purifier lock` with the new compiler first.
+These checks do not claim ABI identity from the version alone; Cabal still
+checks actual package and compiler capabilities while resolving and building.
 
-- the locked sources, which fill the no-index repository that the shim
-  builds from;
-- the toolchain, which is the GHC of the plan in the lock, cabal-install, and the
-  haskell-language-server for that GHC.
+For an explicit packaged development toolchain, use
+`eval "$(cabal-purifier prefetch --with-toolchain)"`. This convenience
+requires a packaged GHC matching the lock and includes HLS when available.
+A missing packaged compiler does not prevent default local adoption.
 
 It keeps them alive with a garbage-collector root,
 `cabal-purifier.lock.prefetch`, beside the lockfile, writes the shim to
 `dist-newstyle/cabal-purifier/bin/cabal`, and prints a `PATH` export that
-puts the shim and the toolchain first. After a prefetch, `cabal build`,
+puts only the shim first by default, followed by your existing `PATH`. With
+`--with-toolchain`, the requested toolchain follows the shim. After a prefetch, `cabal build`,
 `cabal run`, `cabal test` and the editor work with the network cut off.
 
 The shim runs cabal with a Cabal directory whose only repository is the
@@ -359,8 +370,9 @@ any difference.
 
 ## Editor
 
-`prefetch` puts the `haskell-language-server` of the toolchain and the `cabal`
-shim first on `PATH`. An editor started from that shell, or with that
+`prefetch` puts the `cabal` shim first on `PATH` and preserves your existing
+language server. `--with-toolchain` can supply packaged HLS when available.
+An editor started from that shell, or with that
 `PATH`, loads the project through the shim, so the build tool calls of the
 language server go to the locked sources and nothing is downloaded.
 A `.envrc` with the `eval` line from [Working offline](#working-offline) does

@@ -18,6 +18,8 @@
   nix-prefetch-git,
   path,
   version,
+  # Bundled GHC is an opt-in installation convenience.
+  withToolchain ? false,
   # The source of github:nix-purifiers/purifier, which the cabal-purifier
   # package overlay passes.
   purifierSource ? throw "cabal-purifier: the cli package needs `purifierSource`, which the cabal-purifier package overlay passes",
@@ -41,13 +43,15 @@ stdenvNoCC.mkDerivation {
       --set CABAL_PURIFIER_PURIFIER ${purifierSource} \
       --set CABAL_PURIFIER_SELF "$out/bin/cabal-purifier" \
       --suffix PATH : ${
-        lib.makeBinPath [
-          cabal-install
-          ghc
-          curl
-          gitMinimal
-          nix-prefetch-git
-        ]
+        lib.makeBinPath (
+          [
+            cabal-install
+            curl
+            gitMinimal
+            nix-prefetch-git
+          ]
+          ++ lib.optional withToolchain ghc
+        )
       }
     makeWrapper "$out/bin/cabal-purifier" "$out/bin/cabal" \
       --set CABAL_PURIFIER_SHIM 1
