@@ -105,8 +105,8 @@ let
     pkgs.runCommand name { nativeBuildInputs = [ pkgs.nix ]; } ''
       export HOME="$TMPDIR" NIX_STATE_DIR="$TMPDIR/state"
       mkdir lib
-      cp ${../nix/lib/read-lock.nix} lib/read-lock.nix
-      cp ${../nix/lib/lock-version.nix} lib/lock-version.nix
+      cp ${../lib-overlays/default/read-lock.nix} lib/read-lock.nix
+      cp ${../lib-overlays/default/lock-version.nix} lib/lock-version.nix
       cp ${lockFile} lock.json
       cp -r ${project} project
       expression="let lock = import $PWD/lib/read-lock.nix { lockFile = $PWD/lock.json; src = $PWD/project; }; in

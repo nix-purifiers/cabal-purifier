@@ -65,7 +65,7 @@ SYSTEMS = {
     "aarch64-darwin": {"triple": "aarch64-apple-darwin", "arch": "ArchAArch64", "os": "OSDarwin", "name": "aarch64"},
 }
 
-LIB = Path(os.environ.get("CABAL_PURIFIER_LIB", Path(__file__).resolve().parent.parent / "nix/lib"))
+LIB = Path(os.environ.get("CABAL_PURIFIER_LIB", Path(__file__).resolve().parent.parent / "pkgs/cli/runtime"))
 NIXPKGS = os.environ.get("CABAL_PURIFIER_NIXPKGS", "<nixpkgs>")
 PURIFIER = os.environ.get("CABAL_PURIFIER_PURIFIER", "")
 
@@ -99,7 +99,7 @@ def run(cmd, cwd=None, env=None, capture=False):
 
 
 def offline_project():
-    spec = importlib.util.spec_from_file_location("offline_project", LIB / "offline_project.py")
+    spec = importlib.util.spec_from_file_location("offline_project", LIB.parent.parent / "build-cabal-project/offline_project.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

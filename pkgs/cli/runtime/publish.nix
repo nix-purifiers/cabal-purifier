@@ -22,13 +22,13 @@
 }:
 let
   pkgs = import nixpkgs { };
-  buildCabalProject = pkgs.callPackage ./build-cabal-project.nix {
+  buildCabalProject = pkgs.callPackage ../../build-cabal-project/default.nix {
     purifier = import ./purifier.nix { inherit pkgs purifier; };
   };
   root = /. + src;
   freeze = if cabalFreeze == "" then null else /. + cabalFreeze;
   lock =
-    (import ./read-lock.nix {
+    (import ../../../lib-overlays/default/read-lock.nix {
       src = root;
       lockFile = /. + lockFile;
       cabalFreeze = freeze;

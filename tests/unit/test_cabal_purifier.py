@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 """Unit tests for the lock run's parsing and its URL and path logic
 (bin/cabal-purifier), the offline copy of a project's configuration
-(nix/lib/offline_project.py) and the plan check (nix/lib/check_plan.py).
+(pkgs/build-cabal-project/offline_project.py) and the plan check (pkgs/build-cabal-project/check_plan.py).
 
 Run them from the repository root with `python3 -m unittest discover -s
 tests/unit`. The flake's `unit` check runs them in the sandbox."""
@@ -32,10 +32,10 @@ def load(name, path):
     return module
 
 
-os.environ.setdefault("CABAL_PURIFIER_LIB", str(ROOT / "nix/lib"))
+os.environ.setdefault("CABAL_PURIFIER_LIB", str(ROOT / "pkgs/cli/runtime"))
 cli = load("cabal_purifier", ROOT / "bin/cabal-purifier")
-offline = load("offline_project", ROOT / "nix/lib/offline_project.py")
-check_plan = load("check_plan", ROOT / "nix/lib/check_plan.py")
+offline = load("offline_project", ROOT / "pkgs/build-cabal-project/offline_project.py")
+check_plan = load("check_plan", ROOT / "pkgs/build-cabal-project/check_plan.py")
 
 
 class LocalCompilerTest(unittest.TestCase):

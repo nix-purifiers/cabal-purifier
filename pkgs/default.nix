@@ -18,10 +18,10 @@
     withToolchain = true;
   };
 
-  # The builder (nix/lib/build-cabal-project.nix), a package for
+  # The builder (pkgs/build-cabal-project/default.nix), a package for
   # callPackage. It takes the `purifier` namespace of
   # github:nix-purifiers/purifier from the library of this flake.
-  buildCabalProject = callPackage ../nix/lib/build-cabal-project.nix {
+  buildCabalProject = callPackage ./build-cabal-project/default.nix {
     inherit (lib) purifier;
   };
 }
