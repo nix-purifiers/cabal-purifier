@@ -19,7 +19,11 @@ case "$(uname -s):$(uname -m):$(cat "$evidence/system.txt")" in
   Linux:x86_64:x86_64-linux|Linux:aarch64:aarch64-linux|Darwin:arm64:aarch64-darwin) ;;
   *) echo 'Native runner and Nix system disagree' >&2; exit 1 ;;
 esac
-nix hash path "$root" > "$evidence/source-nar-hash.txt"
+# Hash the same Git-filtered source Nix uses, excluding checkout metadata.
+nix flake metadata --json "$root" > "$evidence/flake-metadata.json"
+source_tree=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["path"])' "$evidence/flake-metadata.json")
+nix hash path "$source_tree" > "$evidence/source-nar-hash.txt"
+test "$(nix config show sandbox)" = true
 cli=$(nix build '.#cli' --no-link --print-out-paths)/bin/cabal-purifier
 sources="$root#lib.caisson.libManifest.sources"
 nixpkgs=$(nix eval --raw "$sources.nixpkgs.outPath")
@@ -32,6 +36,7 @@ chmod -R u+w "$work/app"
 rm "$work/app/cabal-purifier.lock.json"
 (cd "$work/app" && "$cli" lock)
 cp "$work/app/cabal-purifier.lock.json" "$evidence/lock.json"
+nix hash path "$work/app" > "$evidence/sample-nar-hash.txt"
 nix build --no-link --json --file tests/build.nix \
   --argstr src "$work/app" --argstr nixpkgs "$nixpkgs" \
   --argstr purifier "$purifier" > "$evidence/builds.json"
