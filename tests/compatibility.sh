@@ -21,8 +21,8 @@ case "$(uname -s):$(uname -m):$(cat "$evidence/system.txt")" in
 esac
 # Hash the same Git-filtered source Nix uses, excluding checkout metadata.
 nix flake metadata --json "$root" > "$evidence/flake-metadata.json"
-source_tree=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["path"])' "$evidence/flake-metadata.json")
-nix hash path "$source_tree" > "$evidence/source-nar-hash.txt"
+python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["locked"]["narHash"])' \
+  "$evidence/flake-metadata.json" > "$evidence/source-nar-hash.txt"
 test "$(nix config show sandbox)" = true
 cli=$(nix build '.#cli' --no-link --print-out-paths)/bin/cabal-purifier
 sources="$root#lib.caisson.libManifest.sources"
