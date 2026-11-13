@@ -11,10 +11,11 @@ build it offline.
       Re-resolves the named packages, or every package, with the newest
       package index, writes cabal.project.freeze again when the project
       has one, and writes the lockfile.
-  cabal-purifier prefetch
-      Realizes the locked sources, GHC, cabal-install and
-      haskell-language-server in the Nix store, keeps them alive with a GC
-      root beside the lockfile, and prints the PATH export that puts a
+  cabal-purifier prefetch [--with-toolchain]
+      Realizes the locked sources while preserving your existing GHC and
+      cabal. --with-toolchain explicitly requests a packaged toolchain.
+      Keeps the sources alive with a GC root beside the lockfile and prints
+      the PATH export that puts a
       `cabal` shim first: `eval "$(cabal-purifier prefetch)"`. Every cabal
       command, the language server's included, then runs offline on the
       locked sources.
@@ -43,6 +44,7 @@ import importlib.util
 import json
 import os
 import platform
+import shlex
 import re
 import shutil
 import subprocess
@@ -74,6 +76,13 @@ class Failure(Exception):
 
 def say(message):
     print(f"cabal-purifier: {message}", file=sys.stderr)
+
+
+def local_environment(**overrides):
+    """Preserve the caller's tool search when a child changes directory."""
+    env = dict(os.environ, **overrides)
+    env["PATH"] = os.pathsep.join(str(Path(entry or ".").absolute()) for entry in os.get_exec_path(env))
+    return env
 
 
 def run(cmd, cwd=None, env=None, capture=False):
@@ -142,21 +151,105 @@ def https(url):
 # The compiler and the planning wrapper
 
 
-def find_compiler(root):
+def find_compiler(root, config_file=None):
     """The GHC the project builds with: `with-compiler` of its project
     files, else `ghc` on PATH."""
     name = "ghc"
-    for file in PROJECT_FILES:
-        path = root / file
+    # Read the user's compiler choice before installing our isolated Cabal
+    # repository configuration in the child environment.
+    explicit = config_file if config_file is not None else os.environ.get("CABAL_CONFIG")
+    if explicit is not None:
+        if not explicit:
+            raise Failure("Cabal configuration path is empty")
+        config = Path(explicit)
+        if not config.is_file():
+            raise Failure(f"Cabal configuration {config} does not exist")
+    elif os.environ.get("CABAL_DIR"):
+        config = Path(os.environ["CABAL_DIR"]) / "config"
+    else:
+        xdg = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "cabal/config"
+        legacy = Path.home() / ".cabal/config"
+        config = xdg if xdg.exists() or not legacy.parent.is_dir() else legacy
+    for path in (config, *(root / file for file in PROJECT_FILES)):
         if path.exists():
             for line in path.read_text().splitlines():
-                match = re.match(r"^with-compiler\s*:\s*(\S+)", line)
-                if match:
-                    name = match.group(1)
+                match = re.match(r"^with-compiler\s*:\s*(.*)", line, re.IGNORECASE)
+                if match and match.group(1).strip():
+                    values = shlex.split(match.group(1))
+                    if len(values) != 1:
+                        raise Failure(f"{path}: quote a compiler path containing spaces")
+                    name = values[0]
     found = shutil.which(name)
     if not found:
         raise Failure(f"no compiler {name} on PATH")
-    return Path(found)
+    return Path(found).absolute()
+
+
+def compiler_arguments(arguments):
+    """Cabal's compiler spellings, before the executable argument separator.
+    Keep explicit compiler flags; consume global config overrides because the
+    child must use our locked repository config after reading its SDK choice.
+    """
+    compiler = config = None
+    forwarded = []
+    index = 0
+    while index < len(arguments):
+        argument = arguments[index]
+        if argument == "--":
+            forwarded.extend(arguments[index:])
+            break
+        if argument in ("--with-compiler", "-w", "--config-file"):
+            if index + 1 >= len(arguments):
+                raise Failure(f"{argument} needs a path")
+            value = arguments[index + 1]
+            if argument == "--config-file":
+                config = value
+            else:
+                compiler = value
+                forwarded.extend((argument, value))
+            index += 2
+            continue
+        if argument.startswith("--config-file="):
+            config = argument.split("=", 1)[1]
+        else:
+            if argument.startswith("--with-compiler="):
+                compiler = argument.split("=", 1)[1]
+            elif argument.startswith("-w") and len(argument) > 2:
+                compiler = argument[2:]
+            forwarded.append(argument)
+        index += 1
+    return compiler, config, forwarded
+
+
+def validate_local_compiler(root, lock, arguments=()):
+    """Validate the selected host SDK, without requiring a Nix SDK."""
+    override, config, _ = compiler_arguments(arguments)
+    if override is not None:
+        if not override:
+            raise Failure("--with-compiler needs a compiler path")
+        found = shutil.which(override)
+        if not found:
+            raise Failure(f"no compiler {override} on PATH")
+        compiler = Path(found).absolute()
+    else:
+        compiler = find_compiler(root, config_file=config)
+    system = host_system()
+    expected = lock["systems"].get(system)
+    if expected is None:
+        raise Failure(f"the lockfile has no plan for {system}; run `cabal-purifier lock`")
+    actual = "ghc-" + run([compiler, "--numeric-version"], capture=True).strip()
+    if actual != expected["compiler"]:
+        raise Failure(f"selected compiler {compiler} is {actual}, but the lock names {expected['compiler']}; run `cabal-purifier lock` with this compiler")
+    info = dict(re.findall(r'\("([^"\n]+)","([^"\n]*)"\)', run([compiler, "--info"], capture=True)))
+    target = info.get("Target platform", "")
+    arch, kernel = system.split("-", 1)
+    if target.split("-", 1)[0] != arch or not target.endswith("-" + kernel):
+        raise Failure(f"selected compiler targets {target or 'an unknown platform'}, but local development runs on {system}")
+    package_tool = ghc_pkg_for(compiler)
+    package_version = run([package_tool, "--version"], capture=True).strip().split()[-1]
+    if "ghc-" + package_version != actual:
+        raise Failure(f"{package_tool} belongs to GHC {package_version}, but selected compiler is {actual}")
+    return compiler
 
 
 def ghc_pkg_for(ghc):
@@ -164,11 +257,11 @@ def ghc_pkg_for(ghc):
     for candidate in (f"ghc-pkg-{version}", "ghc-pkg"):
         beside = ghc.parent / candidate
         if beside.exists():
-            return beside
+            return beside.absolute()
     found = shutil.which(f"ghc-pkg-{version}") or shutil.which("ghc-pkg")
     if not found:
         raise Failure(f"no ghc-pkg for {ghc}")
-    return Path(found)
+    return Path(found).absolute()
 
 
 def planning_compiler(tmp, ghc, system):
@@ -214,7 +307,7 @@ def configuration_flags(configuration):
 def plan(root, env, compiler, builddir, configuration, project_args=(), constraints=()):
     run(
         [
-            "cabal",
+            real_cabal(root),
             "build",
             "all",
             "--dry-run",
@@ -331,7 +424,7 @@ def refresh_resolution(root, env, ghc, latest, packages, previous_plans, outside
             index_args = [f"--index-state={latest}"] if latest else []
             run(
                 [
-                    "cabal",
+                    real_cabal(root),
                     "freeze",
                     f"--project-dir={root}",
                     f"--project-file={project}",
@@ -351,7 +444,7 @@ def refresh_resolution(root, env, ghc, latest, packages, previous_plans, outside
             freeze.unlink()
         say(f"writing {FREEZE} again with the newest package index")
         index_args = [f"--index-state={latest}"] if latest else []
-        run(["cabal", "freeze", f"--with-compiler={ghc}", *index_args], cwd=root, env=env)
+        run([real_cabal(root), "freeze", f"--with-compiler={ghc}", *index_args], cwd=root, env=env)
         return {}
     if not packages:
         return {}
@@ -584,9 +677,10 @@ def make_lock(
             "  secure: True\n"
             f"remote-repo-cache: {repo_cache}\n"
         )
-        env = dict(os.environ, CABAL_DIR=str(tmp / "cabal"))
+        env = local_environment(CABAL_DIR=str(tmp / "cabal"))
+        env.pop("CABAL_CONFIG", None)
         say("updating the package indexes")
-        updated = run(["cabal", "update"], cwd=root, env=env, capture=True)
+        updated = run([real_cabal(root), "update"], cwd=root, env=env, capture=True)
         sys.stderr.write(updated)
         latest = re.findall(r"index-state is set to (\S+?)\.?$", updated, re.MULTILINE)
         latest = latest[-1] if latest else None
@@ -876,13 +970,15 @@ def offline_setup(root, lock, sources, work, freeze=None):
         constraints_of(lock["systems"][system]["units"]),
         freeze=freeze,
     )
-    env = dict(os.environ, CABAL_DIR=str(cabal_dir))
+    env = local_environment(CABAL_DIR=str(cabal_dir))
+    env.pop("CABAL_CONFIG", None)
     return env, [f"--project-dir={root}", f"--project-file={project}"]
 
 
 def check_lock(root, lock_path, lock, freeze=None):
     """Resolves the project offline from the locked sources alone, which
     shows that the lock holds everything the plan needs."""
+    compiler = validate_local_compiler(root, lock)
     say("checking the lock: resolving offline from the locked sources")
     with tempfile.TemporaryDirectory(prefix="cabal-purifier-check-") as tmp:
         tmp = Path(tmp)
@@ -892,11 +988,13 @@ def check_lock(root, lock_path, lock, freeze=None):
         resolved = plan(
             root,
             env,
-            find_compiler(root),
+            compiler,
             tmp / "dist",
             lock["configuration"],
             project_args,
         )
+        if resolved["compiler-id"] != lock["systems"][system]["compiler"]:
+            raise Failure("the offline compiler differs from the lock; run `cabal-purifier lock`")
         locked = {(u["name"], u["version"]) for u in lock["systems"][system]["units"]}
         got = set(packages_of(resolved))
         if got != locked:
@@ -1116,22 +1214,24 @@ def prefetch_root(path):
 
 
 def verb_prefetch(root, path, tool, args):
-    """Realizes the locked sources and the toolchain for this system, keeps
-    them alive with a GC root beside the lockfile, and writes the `cabal`
-    shim. Prints the PATH export that puts the shim and the toolchain
-    first: every cabal command, the language server's included, then runs
-    offline on the locked sources."""
-    if args:
-        raise Failure(
-            "`cabal-purifier prefetch` takes no arguments but --lockfile and --tool-lockfile"
-        )
+    """Realizes dependencies and writes a shim, preserving the host SDK.
+    Packaged tools are provisioned only with explicit --with-toolchain."""
+    with_toolchain = args == ["--with-toolchain"]
+    if args and not with_toolchain:
+        raise Failure("`cabal-purifier prefetch` accepts only --with-toolchain, --lockfile and --tool-lockfile")
     freeze = outside_freeze(tool)
-    read_current_lock(root, path, freeze)
-    say("realizing the locked sources and the toolchain")
+    lock = read_current_lock(root, path, freeze)
+    if not with_toolchain:
+        validate_local_compiler(root, lock)
+        real_cabal(root)
+    say("realizing the locked sources" + (" and requested toolchain" if with_toolchain else ""))
     out = run(
         [
             "nix-build",
             LIB / "prefetch.nix",
+            "--arg",
+            "withToolchain",
+            "true" if with_toolchain else "false",
             "--argstr",
             "lockFile",
             path,
@@ -1160,17 +1260,21 @@ def verb_prefetch(root, path, tool, args):
     shims = work_dir(root) / "bin"
     shims.mkdir(parents=True, exist_ok=True)
     shim = shims / "cabal"
-    variables = f'CABAL_PURIFIER_SHIM=1 CABAL_PURIFIER_LOCKFILE="{path}"'
+    variables = "CABAL_PURIFIER_SHIM=1 CABAL_PURIFIER_LOCKFILE=" + shlex.quote(str(path))
     if freeze:
-        variables += f' CABAL_PURIFIER_TOOL_LOCKFILE="{freeze}"'
-    shim.write_text(f'#!/bin/sh\n{variables} exec "{self}" "$@"\n')
+        variables += " CABAL_PURIFIER_TOOL_LOCKFILE=" + shlex.quote(str(freeze))
+    shim.write_text(f'#!/bin/sh\n{variables} exec {shlex.quote(self)} "$@"\n')
     shim.chmod(0o755)
     toolchain = work_dir(root) / "toolchain"
-    if toolchain.is_symlink() or toolchain.exists():
-        toolchain.unlink()
-    toolchain.symlink_to(prefetched / "toolchain")
+    if with_toolchain:
+        if toolchain.is_symlink():
+            toolchain.unlink()
+        elif toolchain.exists():
+            raise Failure(f"{toolchain} exists and is not a generated toolchain symlink")
+        toolchain.symlink_to(prefetched / "toolchain")
     say(f"prefetched {prefetched}, kept alive by {prefetch_root(path)}")
-    print(f'export PATH="{shims}:{toolchain}/bin:$PATH"')
+    additions = str(shims) + (f":{toolchain}/bin" if with_toolchain else "")
+    print("export PATH=" + shlex.quote(additions) + ":\"$PATH\"")
 
 
 def shim_cabal(root, path, tool, args):
@@ -1183,6 +1287,8 @@ def shim_cabal(root, path, tool, args):
         os.execve(cabal, [cabal, *args], env)
     freeze = outside_freeze(tool)
     lock = read_current_lock(root, path, freeze)
+    compiler = validate_local_compiler(root, lock, args)
+    _, _, args = compiler_arguments(args)
     work = work_dir(root)
     sources = realize(root, path, work / "sources", freeze)
     env, project_args = offline_setup(root, lock, sources, work, freeze)
@@ -1191,7 +1297,7 @@ def shim_cabal(root, path, tool, args):
     # global options: the language server runs `cabal --builddir=… repl`.
     command = next((i for i, a in enumerate(args) if not a.startswith("-")), None)
     if command is not None:
-        args = [*args[: command + 1], *project_args, *args[command + 1 :]]
+        args = [*args[: command + 1], *project_args, f"--with-compiler={compiler}", *args[command + 1 :]]
     cabal = real_cabal(root)
     os.execve(cabal, [cabal, *args], env)
 
@@ -1200,13 +1306,13 @@ def real_cabal(root):
     """The cabal on PATH, past the shim, so that the shim does not run
     itself."""
     shims = (work_dir(root) / "bin").resolve()
-    path = [p for p in os.environ.get("PATH", "").split(os.pathsep) if p and Path(p).resolve() != shims]
+    path = [p or "." for p in os.get_exec_path() if Path(p or ".").resolve() != shims]
     own = os.environ.get("CABAL_PURIFIER_SELF")
     installed = Path(own).with_name("cabal").resolve() if own else None
     for directory in path:
         found = shutil.which("cabal", path=directory)
         if found and Path(found).resolve() != installed:
-            return found
+            return str(Path(found).absolute())
     raise Failure("no ordinary cabal on PATH")
 
 

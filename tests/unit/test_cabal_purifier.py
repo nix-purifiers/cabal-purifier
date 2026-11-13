@@ -18,6 +18,7 @@ import sys
 import tarfile
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(os.environ.get("CABAL_PURIFIER_ROOT", Path(__file__).resolve().parents[2]))
@@ -35,6 +36,120 @@ os.environ.setdefault("CABAL_PURIFIER_LIB", str(ROOT / "nix/lib"))
 cli = load("cabal_purifier", ROOT / "bin/cabal-purifier")
 offline = load("offline_project", ROOT / "nix/lib/offline_project.py")
 check_plan = load("check_plan", ROOT / "nix/lib/check_plan.py")
+
+
+class LocalCompilerTest(unittest.TestCase):
+    def validate(self, version="99.7.1", target="x86_64-unknown-linux", package_version=None, arguments=()):
+        # A version absent from any packaged SDK catalog is still valid locally.
+        lock = {"systems": {"x86_64-linux": {"compiler": "ghc-99.7.1"}}}
+        def output(argv, **kwargs):
+            if argv[-1] == "--numeric-version":
+                return version
+            if argv[-1] == "--info":
+                return '[("Target platform","' + target + '")]'
+            if argv[-1] == "--version":
+                return "GHC package manager version " + (package_version or version)
+            self.fail(argv)
+        with patch.object(cli, "find_compiler", return_value=Path("/opt/user-ghc/bin/ghc")) as default_compiler, patch.object(cli, "ghc_pkg_for", return_value=Path("/opt/user-ghc/bin/ghc-pkg")), patch.object(cli, "host_system", return_value="x86_64-linux"), patch.object(cli, "run", side_effect=output):
+            result = cli.validate_local_compiler(Path("."), lock, arguments)
+            if arguments:
+                default_compiler.assert_not_called()
+            return result
+
+    def test_noncatalog_host_compiler(self):
+        self.assertEqual(self.validate(), Path("/opt/user-ghc/bin/ghc"))
+
+    def test_explicit_compiler_without_default(self):
+        with patch.object(cli.shutil, "which", return_value="/opt/explicit-ghc/bin/ghc"):
+            self.assertEqual(self.validate(arguments=("build", "--with-compiler=/opt/explicit-ghc/bin/ghc")), Path("/opt/explicit-ghc/bin/ghc"))
+
+    def test_attached_short_compiler(self):
+        with patch.object(cli.shutil, "which", return_value="/opt/attached-ghc/bin/ghc"):
+            self.assertEqual(self.validate(arguments=("build", "-w/opt/attached-ghc/bin/ghc")), Path("/opt/attached-ghc/bin/ghc"))
+
+    def test_compiler_in_cabal_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            config = root / "native-config"
+            config.write_text('with-compiler: "/opt/host sdk/bin/ghc"\n')
+            with patch.dict(os.environ, CABAL_CONFIG=str(config)), patch.object(cli.shutil, "which", side_effect=lambda name: name):
+                self.assertEqual(cli.find_compiler(root), Path("/opt/host sdk/bin/ghc"))
+                (root / "cabal.project").write_text("with-compiler: /opt/project-ghc\n")
+                self.assertEqual(cli.find_compiler(root), Path("/opt/project-ghc"))
+
+    def test_executable_arguments_do_not_select_compiler(self):
+        self.assertEqual(cli.compiler_arguments(["run", "hello", "--", "-wapp-option"]), (None, None, ["run", "hello", "--", "-wapp-option"]))
+
+    def test_global_config_is_consumed_after_sdk_selection(self):
+        self.assertEqual(cli.compiler_arguments(["--config-file", "/opt/config", "build", "-w/opt/ghc"]), ("/opt/ghc", "/opt/config", ["build", "-w/opt/ghc"]))
+
+    def test_relative_path_is_anchored_without_resolving_sdk_symlinks(self):
+        with patch.dict(os.environ, PATH="sdk/bin::/usr/bin"), patch("os.getcwd", return_value="/caller"):
+            self.assertEqual(cli.local_environment()["PATH"], "/caller/sdk/bin:/caller:/usr/bin")
+            with patch.object(cli.shutil, "which", return_value="sdk/bin/ghc"):
+                self.assertEqual(self.validate(arguments=("build", "-wsdk/bin/ghc")), Path("/caller/sdk/bin/ghc"))
+
+    def test_empty_path_entry_selects_caller_cabal_before_later_tool(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            caller = Path(tmp)
+            later = caller / "later"
+            later.mkdir()
+            for path in (caller / "cabal", later / "cabal"):
+                path.write_text("#!/bin/sh\nexit 0\n")
+                path.chmod(0o755)
+            before = Path.cwd()
+            try:
+                os.chdir(caller)
+                with patch.dict(os.environ, PATH=":" + str(later)):
+                    self.assertEqual(cli.real_cabal(caller), str(caller / "cabal"))
+            finally:
+                os.chdir(before)
+
+    def test_empty_path_entry_still_excludes_generated_shim_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            shim = cli.work_dir(project) / "bin"
+            shim.mkdir(parents=True)
+            ordinary = project / "ordinary"
+            ordinary.mkdir()
+            for path in (shim / "cabal", ordinary / "cabal"):
+                path.write_text("#!/bin/sh\nexit 0\n")
+                path.chmod(0o755)
+            before = Path.cwd()
+            try:
+                os.chdir(shim)
+                with patch.dict(os.environ, PATH=":" + str(ordinary)):
+                    self.assertEqual(cli.real_cabal(project), str(ordinary / "cabal"))
+            finally:
+                os.chdir(before)
+
+    def test_wrong_version(self):
+        with self.assertRaisesRegex(cli.Failure, "lock names ghc-99.7.1"):
+            self.validate(version="99.7.2")
+
+    def test_wrong_target(self):
+        with self.assertRaisesRegex(cli.Failure, "local development runs on x86_64-linux"):
+            self.validate(target="aarch64-apple-darwin")
+
+    def test_wrong_package_tool(self):
+        with self.assertRaisesRegex(cli.Failure, "belongs to GHC 98.1"):
+            self.validate(package_version="98.1")
+
+    def test_prefetch_preserves_runtime_path(self):
+        with tempfile.TemporaryDirectory(prefix="host sdk ") as temporary:
+            root = Path(temporary)
+            calls = []
+            def output(argv, **kwargs):
+                calls.append(argv)
+                return "/nix/store/locked-dependencies\n"
+            with patch.object(cli, "read_current_lock", return_value={}), patch.object(cli, "validate_local_compiler") as selected, patch.object(cli, "real_cabal", return_value="/opt/user-cabal/bin/cabal"), patch.object(cli, "host_system", return_value="x86_64-linux"), patch.object(cli, "purifier_source", return_value="/source/purifier"), patch.object(cli, "run", side_effect=output), patch.dict(os.environ, CABAL_PURIFIER_SELF="/opt/user tools/cabal-purifier"), patch("sys.stdout", new_callable=io.StringIO) as stdout:
+                cli.verb_prefetch(root, root / cli.LOCK_NAME, None, [])
+            selected.assert_called_once()
+            self.assertEqual(calls[0][calls[0].index("withToolchain") + 1], "false")
+            self.assertNotIn("toolchain/bin", stdout.getvalue())
+            self.assertFalse((cli.work_dir(root) / "toolchain").exists())
+            # Verify shell quoting even when the project and executable contain spaces.
+            subprocess.run(["sh", "-n", str(cli.work_dir(root) / "bin/cabal")], check=True)
 
 
 class HttpsTest(unittest.TestCase):

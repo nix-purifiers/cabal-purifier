@@ -11,6 +11,13 @@
     purifierSource = lib.caisson.libManifest.sources.purifier;
   };
 
+  # Explicit bundled-runtime convenience; the default CLI uses the host GHC.
+  cliWithToolchain = callPackage ./cli {
+    version = import ./version.nix;
+    purifierSource = lib.caisson.libManifest.sources.purifier;
+    withToolchain = true;
+  };
+
   # The builder (nix/lib/build-cabal-project.nix), a package for
   # callPackage. It takes the `purifier` namespace of
   # github:nix-purifiers/purifier from the library of this flake.

@@ -5,8 +5,8 @@
 #
 #   sources     the locked sources (repository.nix), which `cabal` builds
 #               from offline
-#   toolchain   the GHC of the lock's plan, cabal-install, and the
-#               haskell-language-server for that GHC, which an editor runs
+#   toolchain   only with explicit withToolchain: the packaged GHC and
+#               cabal-install, plus HLS when available
 {
   # The lockfile, as an absolute path string.
   lockFile,
@@ -21,6 +21,8 @@
   # A cabal.project.freeze kept outside the project, as an absolute path
   # string, or "" for the one in the project.
   cabalFreeze ? "",
+  # Explicit convenience; default local adoption keeps the host runtime.
+  withToolchain ? false,
 }:
 let
   pkgs = import nixpkgs { };
@@ -36,9 +38,7 @@ let
     attr:
     throw "cabal-purifier: nixpkgs has no ${attr} for the ${plan.compiler} the lock was made with.";
   ghc = pkgs.haskell.compiler.${ghcAttr} or (missing "haskell.compiler.${ghcAttr}");
-  languageServer =
-    pkgs.haskell.packages.${ghcAttr}.haskell-language-server
-      or (missing "haskell.packages.${ghcAttr}.haskell-language-server");
+  languageServer = pkgs.haskell.packages.${ghcAttr}.haskell-language-server or null;
   # realize.nix checks the lock, with checkLock of the purifier library.
   sources = import ./realize.nix {
     inherit
@@ -55,17 +55,21 @@ let
     paths = [
       ghc
       pkgs.cabal-install
-      languageServer
-    ];
+    ]
+    ++ pkgs.lib.optional (languageServer != null) languageServer;
   };
 in
-pkgs.linkFarm "cabal-purifier-prefetch" [
-  {
-    name = "sources";
-    path = sources;
-  }
-  {
-    name = "toolchain";
-    path = toolchain;
-  }
-]
+pkgs.linkFarm "cabal-purifier-prefetch" (
+  [
+    {
+      name = "sources";
+      path = sources;
+    }
+  ]
+  ++ pkgs.lib.optionals withToolchain [
+    {
+      name = "toolchain";
+      path = toolchain;
+    }
+  ]
+)

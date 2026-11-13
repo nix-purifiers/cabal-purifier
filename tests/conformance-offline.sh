@@ -14,7 +14,7 @@ set -euo pipefail
 . tests/common.sh
 
 cd "$work/fixtures/workspace"
-eval "$("$cli" prefetch)"
+eval "$("$cli" prefetch --with-toolchain)"
 [ "$(command -v cabal)" = "$PWD/dist-newstyle/cabal-purifier/bin/cabal" ] ||
   fail "prefetch did not put its cabal shim first on PATH"
 [ -L cabal-purifier.lock.prefetch ] || fail "prefetch left no GC root beside the lockfile"
