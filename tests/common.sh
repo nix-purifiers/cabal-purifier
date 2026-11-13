@@ -47,5 +47,5 @@ offline() {
 lock_problems() {
   local src=$1 lockfile=${2:-$1/cabal-purifier.lock.json}
   nix-instantiate --eval --strict --expr \
-    "(import $root/nix/lib/read-lock.nix { src = $src; lockFile = $lockfile; }).problems"
+    "(import $root/lib-overlays/default/read-lock.nix { src = $src; lockFile = $lockfile; }).problems"
 }

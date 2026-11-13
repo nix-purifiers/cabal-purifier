@@ -23,14 +23,14 @@ let
   pkgs = import nixpkgs { };
   purifierLib = import ./purifier.nix { inherit pkgs purifier; };
   locked = purifierLib.checkLock (
-    import ./read-lock.nix {
+    import ../../../lib-overlays/default/read-lock.nix {
       src = /. + src;
       lockFile = /. + lockFile;
       cabalFreeze = if cabalFreeze == "" then null else /. + cabalFreeze;
     }
   );
 in
-pkgs.callPackage ./repository.nix {
+pkgs.callPackage ../../build-cabal-project/repository.nix {
   purifier = purifierLib;
   lock = locked.cabal;
   entries = purifierLib.entriesFor system locked;

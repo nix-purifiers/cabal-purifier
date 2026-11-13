@@ -24,6 +24,16 @@
   # package overlay passes.
   purifierSource ? throw "cabal-purifier: the cli package needs `purifierSource`, which the cabal-purifier package overlay passes",
 }:
+let
+  runtimeSource = lib.fileset.toSource {
+    root = ../..;
+    fileset = lib.fileset.unions [
+      ../../lib-overlays/default
+      ../build-cabal-project
+      ./runtime
+    ];
+  };
+in
 stdenvNoCC.mkDerivation {
   pname = "cabal-purifier";
   inherit version;
@@ -38,7 +48,7 @@ stdenvNoCC.mkDerivation {
     # repositories, and nix-prefetch-git hashes them for the lock.
     makeWrapper ${python3}/bin/python3 "$out/bin/cabal-purifier" \
       --add-flags "$out/libexec/cabal-purifier.py" \
-      --set CABAL_PURIFIER_LIB ${../../nix/lib} \
+      --set CABAL_PURIFIER_LIB ${runtimeSource}/pkgs/cli/runtime \
       --set CABAL_PURIFIER_NIXPKGS ${path} \
       --set CABAL_PURIFIER_PURIFIER ${purifierSource} \
       --set CABAL_PURIFIER_SELF "$out/bin/cabal-purifier" \

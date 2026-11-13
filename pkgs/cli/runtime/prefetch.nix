@@ -27,7 +27,7 @@
 let
   pkgs = import nixpkgs { };
   lock =
-    (import ./read-lock.nix {
+    (import ../../../lib-overlays/default/read-lock.nix {
       src = /. + src;
       lockFile = /. + lockFile;
       cabalFreeze = if cabalFreeze == "" then null else /. + cabalFreeze;

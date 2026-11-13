@@ -363,7 +363,7 @@ of a package description as `<name>-<version>.cabal` beside its tarball,
 and each package from a source repository as a tarball packed from its
 locked checkout. The build runs cabal with that repository as its only
 repository, and with an offline copy of the configuration of the project
-(`nix/lib/offline_project.py`). The copy leaves out the
+(`pkgs/build-cabal-project/offline_project.py`). The copy leaves out the
 `source-repository-package` and `repository` sections and the
 `index-state`, replaces each package URL with its unpacked directory, and
 adds the constraints of the lock, so Cabal resolves to the locked plan.

@@ -100,7 +100,7 @@
 let
   # The lock in memory; checkLock fails evaluation with its problems.
   locked = purifier.checkLock (
-    import ./read-lock.nix {
+    import ../../lib-overlays/default/read-lock.nix {
       inherit src lockFile cabalFreeze;
     }
   );
